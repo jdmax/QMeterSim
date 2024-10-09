@@ -1,6 +1,6 @@
 # QMeter Circuit Behavior Simulation Notebook
 
-Jupyter Notebook Representation of electronic behavior of a series tank Q-meter. Based initially on MathCAD code by
+Jupyter Notebook representation of the electronic behavior of a series tank Q-meter. Based initially on MathCAD code by
 M. Houlden, G. Court [[1]](#1). Expanded to include 4 additional transmission lines and test polarization signal. This is presented as is, which is a rough but working interactive notebook. 
 
 ### Installation
@@ -37,7 +37,7 @@ There is an optional simulated signal to turn on to gauge the relative size and 
 
 
 ## Author
-Written in 2019 by J. Maxwell (https://orcid.org/0000-0003-2710-4646).
+Written in 2019 by J. Maxwell (https://orcid.org/0000-0003-2710-4646), [Jefferson Lab](https://www.jlab.org) Target Group.
 ## References
 
 <a id="1">[1]</a> 
