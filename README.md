@@ -23,7 +23,7 @@ The code describes a series Q-meter circuit as seen in the figure below. It has 
 
 ![Schematic of circuit described in code](schem.PNG)
 
-In addition to the 3 transmission lines shown in the figure, there is a fourth on the series tank line commonly called the lambda/2 cable. Of the 4, the lambda/2 line has the largest effect on the output curve, but all contribute significantly, particularly when looking at small signals.
+In addition to the 3 transmission lines shown in the figure, there is a fourth on the series tank between the capacitor and inductor, commonly called the lambda/2 cable. Of the 4, the lambda/2 line has the largest effect on the output curve, but all contribute significantly, particularly when looking at small signals.
 
 When the notebook cell is run, there are interactive controls which allow changing the most important aspects of the circuit. Four "trim" controls change the length of each transmission line: supply, signal, reference and coil (or lambda/2). These lengths are expressed in units of lambda/2. For instance, at 32 MHz, the lambda/2 length is 3.5 m, so setting the trim_sup to 1 sets the supply line to 3.5 m. 
 
