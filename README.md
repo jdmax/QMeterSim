@@ -37,7 +37,7 @@ There is an optional simulated signal to turn on to gauge the relative size and 
 
 
 ## Author
-Written in 2020 by J. Maxwell (https://orcid.org/0000-0003-2710-4646).
+Written in 2019 by J. Maxwell (https://orcid.org/0000-0003-2710-4646).
 ## References
 
 <a id="1">[1]</a> 
