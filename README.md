@@ -33,7 +33,7 @@ The phase control is set as degrees from ideal tune with zero line length. The s
 
 ![Screenshot of notebook controls and output.](notebook.PNG)
 
-There is an optional simulated signal to turn on to gauge the relative size and direction of a polarization signal as the circuit changes. This is somewhat realistic for protons, and uses approximations from Hill [[2]](#2) and values from Seely [[3]](#3).
+There is an optional simulated signal to turn on to gauge the relative size and direction of a polarization signal as the circuit changes. This is somewhat realistic for protons, and uses approximations from Hill [[2]](#2) and values from Seely [[3]](#3). It enters as a multiplicative scale to the inductance.
 
 
 ## Author
