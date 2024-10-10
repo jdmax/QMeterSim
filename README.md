@@ -49,4 +49,4 @@ J.J. Hill, D.A. Hill, "Simple correction for Q-meter measurement of proton targe
 
 
 <a id="3">[3]</a> 
-Seely, et. al. "Simulation and Tuning of teh TUNL NMR System," Proceedings of the Workshop on NMR in Polarized Targets (1998) 
+Seely, et. al. "Simulation and Tuning of the TUNL NMR System," Proceedings of the Workshop on NMR in Polarized Targets (1998) 
