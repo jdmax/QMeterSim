@@ -3,6 +3,11 @@
 Jupyter Notebook representation of the electronic behavior of a series tank Q-meter. Based initially on MathCAD code by
 M. Houlden, G. Court [[1]](#1). Expanded to include 4 additional transmission lines and test polarization signal. This is presented as is, which is a rough but working interactive notebook. 
 
+### Web app
+
+An interactive version of this model, with automatic tuning, a realistic deuteron signal and a walkthrough of
+signal analysis, runs in the browser at **https://jdmax.github.io/QMeterSim/**. Its source is in [`web/`](web/).
+
 ### Installation
 This code should be straightforward to run in a working Jupyter Notebook or Jupyter Lab installation. Mamba is the recommended way to do this:
 * https://mamba.readthedocs.io/en/latest/installation/mamba-installation.html
@@ -50,3 +55,7 @@ J.J. Hill, D.A. Hill, "Simple correction for Q-meter measurement of proton targe
 
 <a id="3">[3]</a> 
 Seely, et. al. "Simulation and Tuning of the TUNL NMR System," Proceedings of the Workshop on NMR in Polarized Targets (1998) 
+
+<a id="4">[4]</a> 
+J.D. Maxwell, J. Brock, C. Cuevas, H. Dong, C.D. Keith, J.J. Pierce, "A new cw-NMR Q-meter for dynamically polarized
+targets for particle physics," NIM A 1087 (2026) 171417. (https://doi.org/10.1016/j.nima.2026.171417)

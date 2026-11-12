@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Q-Meter Circuit Simulator</title>
+<meta name="description" content="Simulate the diode and phase-sensitive output of a series-tank NMR Q-meter with four transmission lines and a test polarization signal, computed in the browser with Pyodide.">
+<meta name="author" content="J. Maxwell">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="style.css?v=__V__">
+<style>html, body { margin: 0; } body { font-size: 14px; } [hidden] { display: none !important; }</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Q-Meter Circuit Simulator</h1>
+    <p>The electronic response of a series-tank Q-meter, as used for cw-NMR polarization measurements on
+      polarized targets. An RF sweep drives a tuned LCR tank through a constant-current resistor; the signal is
+      read as a diode (magnitude) output and as a phase-sensitive mixer output against a reference line.
+      Supply, signal, reference and coil (λ/2) cables are all modeled as lossy transmission lines. Based on the
+      MathCAD model of Court, Houlden <i>et al.</i>, computed live in your browser with Python.</p>
+  </header>
+
+  <div class="controls" role="group" aria-label="Tune and sweep">
+    <div class="ctl"><span class="eyebrow">Species</span>
+      <div class="seg" id="speciesSeg">
+        <button type="button" data-v="p" aria-pressed="true">Proton</button>
+        <button type="button" data-v="d" aria-pressed="false">Deuteron</button>
+      </div></div>
+    <div class="ctl"><label class="eyebrow" for="p_b">Field (T)</label>
+      <input type="number" id="p_b" data-p="b" data-min="0.01" step="0.01" min="0.01"></div>
+    <div class="ctl"><label class="eyebrow" for="p_sweep_range">Sweep ± (MHz)</label>
+      <input type="number" id="p_sweep_range" data-p="sweep_range" data-min="0.001" step="0.1" min="0.001"></div>
+    <div class="ctl"><label class="eyebrow" for="p_capacitance">Capacitance (× tune)</label>
+      <input type="number" id="p_capacitance" data-p="capacitance" data-min="0.001" step="0.005" min="0.001"></div>
+    <div class="ctl"><label class="eyebrow" for="p_phase">Phase (deg)</label>
+      <input type="number" id="p_phase" data-p="phase" step="1"></div>
+    <div class="ctl"><span class="eyebrow">Polarization signal</span>
+      <div class="seg" id="sigSeg">
+        <button type="button" data-v="1" aria-pressed="true">On</button>
+        <button type="button" data-v="0" aria-pressed="false">Off</button>
+      </div></div>
+    <div class="ctl"><label class="eyebrow" for="p_pol">Polarization (%)</label>
+      <input type="number" id="p_pol" data-p="pol" data-scale="0.01" data-min="-0.999" data-max="0.999" step="0.05"
+        title="Physical sign: positive is absorptive (as at thermal equilibrium)"></div>
+    <div class="spacer"></div>
+    <span class="status" id="pyStatus" role="status"><i class="dot busy" id="pyDot"></i><span id="pyText">Loading Python (Pyodide)…</span></span>
+  </div>
+
+  <section class="panel" aria-labelledby="trimHead">
+    <div class="card-head">
+      <h2 id="trimHead">Cable lengths</h2>
+      <span class="hint" id="lb2Note"></span>
+    </div>
+    <p>Each transmission line length in units of λ/2 at the Larmor frequency. The coil (λ/2) cable sits in the
+      tank between the tuning capacitor and the coil, and has the largest effect on the curve shape.</p>
+    <div class="trims" id="trims"></div>
+  </section>
+
+  <div class="stage">
+    <div class="card">
+      <div class="card-head">
+        <div class="title"><h2>Diode signal</h2>
+          <button class="btn sm" id="btnTuneDiode" type="button" disabled
+            title="Set the capacitance so the diode dip is centered on the Larmor frequency">Tune</button></div>
+        <span class="hint">|V<sub>rf</sub>| into the diode detector</span>
+      </div>
+      <div class="canvas-box"><canvas id="cvDiode" aria-label="Diode signal versus frequency"></canvas></div>
+      <div class="readline" id="rdDiode" aria-live="off"></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div class="title"><h2>Phase signal</h2>
+          <button class="btn sm" id="btnTunePhase" type="button" disabled
+            title="Set the capacitance and phase so the phase signal is centered and symmetric on the Larmor frequency">Tune</button></div>
+        <span class="hint">−Re(V<sub>rf</sub> · V<sub>ref</sub> · e<sup>iφ</sup>) from the mixer</span>
+      </div>
+      <div class="canvas-box"><canvas id="cvPhase" aria-label="Phase signal versus frequency"></canvas></div>
+      <div class="readline" id="rdPhase" aria-live="off"></div>
+    </div>
+  </div>
+
+  <div class="row" role="group" aria-label="Plot actions">
+    <div class="legend-line">
+      <span style="color:var(--copper)"><i class="sw"></i><span style="color:var(--muted)">current settings</span></span>
+      <span style="color:var(--shell)" id="pinLegend" hidden><i class="sw dash"></i><span style="color:var(--muted)">pinned reference</span></span>
+    </div>
+    <span class="status" id="tuneMsg" aria-live="polite" hidden><i class="dot"></i><span></span></span>
+    <div class="spacer"></div>
+    <button class="btn" id="btnPin" type="button">Pin as reference</button>
+    <button class="btn" id="btnUnpin" type="button" hidden>Clear reference</button>
+    <button class="btn" id="btnCsv" type="button" disabled>Download CSV</button>
+    <button class="btn" id="btnLink" type="button">Copy link to settings</button>
+    <button class="btn" id="btnReset" type="button">Reset to defaults</button>
+  </div>
+
+  <section class="panel" aria-labelledby="anHead">
+    <h2 id="anHead">Analyzing the signal</h2>
+    <p>A Q-meter sweep becomes a polarization in a few steps, as in
+      <a href="https://github.com/jdmax/NMR_Analysis">NMR_Analysis</a> and
+      <a href="https://github.com/jdmax/rgc_offline">rgc_offline</a>. Here they run on the simulated phase signal
+      at the polarization set above, with a thermal-equilibrium (TE) signal from the same circuit as the
+      calibration. Because the true polarization is known, you can see how well each method recovers it.</p>
+    <ol class="steps">
+      <li><b>Baseline subtraction.</b> A baseline sweep, taken with the NMR line moved out of the window by
+        shifting the field, is subtracted. Here the baseline is the same circuit with no signal. If the circuit
+        drifts between the two sweeps (cable temperature, tune), a background remains; the drift control
+        changes the tuning capacitance of the signal sweeps to mimic this.</li>
+      <li><b>Polynomial fit.</b> A polynomial, usually cubic, is fit to the <i>wings</i> (the sweep away from
+        the line, shaded blue) and subtracted.</li>
+      <li><b>Integration.</b> The fit-subtracted points in the integration range (shaded copper) are summed to
+        give the area <span data-tex="A"></span>.</li>
+      <li><b>Calibration.</b> At thermal equilibrium the polarization is known from the field and temperature,
+        <span data-tex="P_\text{TE} = \tanh x"></span> for protons and
+        <span data-tex="P_\text{TE} = 4\tanh x / (3 + \tanh^2 x)"></span> for deuterons, with
+        <span data-tex="x = h f_0 / 2kT"></span>. Then <span data-tex="\text{CC} = P_\text{TE}/A_\text{TE}"></span>
+        and <span data-tex="P = \text{CC}\cdot A"></span>. This assumes the Q-meter responds linearly. Large
+        signals are compressed, which shows up as an error at high proton polarization.</li>
+      <li><b>Deuterons.</b> The asymmetry of the Pake doublet measures the polarization without a TE:
+        the two transitions' intensities are in the ratio
+        <span data-tex="r = I_+/I_-"></span> and <span data-tex="P = (r^2-1)/(r^2+r+1)"></span>.
+        The quick estimate takes <span data-tex="r"></span> as the ratio of the two peak heights, which is
+        biased because each peak sits on the other transition's plateau. A fit of the full lineshape, as in
+        <a href="https://github.com/jdmax/DeuteronPeakFit">DeuteronPeakFit</a>, does better, but only if the
+        output is pure absorption: cables rotate the signal's phase and mix in dispersion. The complex fit adds
+        a phase angle to absorb this. Try both before and after pressing the phase plot's Tune button.</li>
+    </ol>
+
+    <div class="controls inset" role="group" aria-label="Analysis settings">
+      <div class="ctl"><span class="eyebrow">Examples</span>
+        <div class="row">
+          <button class="btn" type="button" data-example="p:0.9">Protons, 90%</button>
+          <button class="btn" type="button" data-example="d:0.3">Deuterons, 30%</button>
+        </div></div>
+      <div class="ctl"><label class="eyebrow" for="a_te">TE temperature (K)</label>
+        <input type="number" id="a_te" data-p="a_te" data-min="0.01" step="0.05"></div>
+      <div class="ctl"><span class="eyebrow">Wings (fraction of sweep)</span>
+        <div class="row">
+          <input type="number" class="frac" id="a_w0" data-p="a_w0" data-min="0" data-max="1" step="0.01" aria-label="Wing 1 start">
+          <input type="number" class="frac" id="a_w1" data-p="a_w1" data-min="0" data-max="1" step="0.01" aria-label="Wing 1 end">
+          <input type="number" class="frac" id="a_w2" data-p="a_w2" data-min="0" data-max="1" step="0.01" aria-label="Wing 2 start">
+          <input type="number" class="frac" id="a_w3" data-p="a_w3" data-min="0" data-max="1" step="0.01" aria-label="Wing 2 end">
+        </div></div>
+      <div class="ctl"><span class="eyebrow">Integration range</span>
+        <div class="row">
+          <input type="number" class="frac" id="a_s0" data-p="a_s0" data-min="0" data-max="1" step="0.01" aria-label="Integration start">
+          <input type="number" class="frac" id="a_s1" data-p="a_s1" data-min="0" data-max="1" step="0.01" aria-label="Integration end">
+        </div></div>
+      <div class="ctl"><label class="eyebrow" for="a_order">Poly order</label>
+        <input type="number" class="frac" id="a_order" data-p="a_order" data-min="0" data-max="8" data-int step="1"></div>
+      <div class="ctl"><label class="eyebrow" for="a_drift">Drift (ppm of C)</label>
+        <input type="number" id="a_drift" data-p="a_drift" step="50"></div>
+      <div class="ctl"><span class="eyebrow">Show sweep</span>
+        <div class="seg" id="anViewSeg">
+          <button type="button" data-v="en" aria-pressed="true">Signal</button>
+          <button type="button" data-v="te" aria-pressed="false">TE</button>
+        </div></div>
+    </div>
+
+    <div class="stage an-stage">
+      <div class="card flat">
+        <div class="card-head">
+          <h2>1–2. Baseline subtracted, with polynomial</h2>
+        </div>
+        <div class="canvas-box"><canvas id="cvBase" aria-label="Baseline-subtracted sweep with polynomial fit to the wings"></canvas></div>
+        <div class="legend-line">
+          <span style="color:var(--copper)"><i class="sw"></i><span style="color:var(--muted)">sweep − baseline</span></span>
+          <span style="color:var(--shell)"><i class="sw dash"></i><span style="color:var(--muted)">polynomial fit to the wings</span></span>
+        </div>
+        <div class="readline" id="rdBase" aria-live="off"></div>
+      </div>
+      <div class="card flat">
+        <div class="card-head">
+          <h2>3. Fit subtracted, integrated</h2>
+        </div>
+        <div class="canvas-box"><canvas id="cvSub" aria-label="Fit-subtracted signal with integration range"></canvas></div>
+        <div class="legend-line">
+          <span style="color:var(--copper)"><i class="sw"></i><span style="color:var(--muted)">fit-subtracted signal</span></span>
+          <span id="subLegend" hidden>
+            <span style="color:var(--fitc)"><i class="sw dash"></i></span><span>absorption fit</span>
+            <span style="color:var(--shell)"><i class="sw dot"></i></span><span>complex fit</span>
+            <span style="color:var(--ink)">●</span><span>peak heights</span>
+          </span>
+        </div>
+        <div class="readline" id="rdSub" aria-live="off"></div>
+      </div>
+    </div>
+    <div class="subhead">4–5. Polarization</div>
+    <div class="dread results" id="anResults" aria-live="polite"></div>
+  </section>
+
+  <details class="panel" id="constPanel">
+    <summary>Circuit constants <span class="hint">fixed values from the notebook and the deuteron lineshape; change with care</span></summary>
+    <div class="designer" id="consts"></div>
+  </details>
+
+  <details class="panel" id="circuitPanel">
+    <summary id="aboutHead">The circuit <span class="hint">schematic and the model, equation by equation</span></summary>
+    <div class="schem">
+      <img src="schem.PNG" alt="Schematic of the series Q-meter: RF source, reference line to the mixer, supply line through the constant-current resistor to the series tank (R, C, L), and signal line to the mixer.">
+      <div class="notes">
+        <ul>
+          <li>An RF source drives the tank through a supply line and a constant-current resistor R<sub>cc</sub>;
+            a reference line carries the source directly to the mixer.</li>
+          <li>The series tank (damping R, tuning C, coil L) has a fourth transmission line between C and L,
+            usually called the λ/2 cable. The signal line connects the tank to the other side of the mixer.</li>
+          <li>Capacitance is in units of the value that tunes the bare tank (no cables) to the Larmor
+            frequency for the chosen species at the given field. Phase is in degrees from ideal tune with zero
+            line length.</li>
+          <li>The optional polarization signal enters as a complex susceptibility multiplying the coil
+            inductance, L = L<sub>0</sub>(1 + 4πηχ). For protons the lineshape uses approximations from
+            Hill &amp; Hill and values from Seely. For deuterons it is the Pake doublet of Dulya <i>et al.</i>,
+            ported from <a href="https://github.com/jdmax/DeuteronPeakFit">DeuteronPeakFit</a>, with its
+            dispersion as well as its absorption.</li>
+          <li>Polarization has its physical sign: positive is absorptive, as at thermal equilibrium. The
+            notebook's <code>pol</code> is the negative of this, so its default of −0.0027 is +0.27% here.</li>
+          <li>A length of exactly zero is singular in this model, so lengths are clamped to 10<sup>−9</sup> λ/2.</li>
+          <li>Lengths are in units of λ/2, so a coil cable of 1 is a true λ/2 line that passes the coil
+            impedance through almost unchanged. Near 0.5 (λ/4) the line makes the coil look capacitive, and the
+            series tank cannot be tuned.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="subhead">The model, equation by equation</div>
+    <p class="eqintro">Every quantity is evaluated at each sweep frequency ω. Lines are labeled
+      <i>i</i> ∈ {sup, sig, ref, coil}, <span data-tex="a \parallel b \equiv ab/(a+b)"></span>, and
+      <span data-tex="\mathcal{T}_i[Z]"></span> is the input impedance of line <i>i</i> terminated by
+      <span data-tex="Z"></span>.</p>
+    <div class="eqgrid">
+      <div class="eqcard">
+        <h3>Larmor frequency and tuning capacitor</h3>
+        <div class="eq" data-tex="f_0 = \gamma_{p,d}\,B, \qquad \omega_0 = 2\pi f_0"></div>
+        <div class="eq" data-tex="C = \frac{c}{\omega_0^{2} L_0}"></div>
+        <p>The capacitance control <span data-tex="c"></span> is in units of the capacitor that resonates
+          the bare coil at <span data-tex="\omega_0"></span>, with
+          <span data-tex="\gamma_p = 42.576"></span> and <span data-tex="\gamma_d = 6.536"></span> MHz/T.</p>
+      </div>
+
+      <div class="eqcard">
+        <h3>Transmission lines</h3>
+        <div class="eq" data-tex="\ell_i = n_i\,\frac{\lambda}{2}, \qquad \frac{\lambda}{2} = \frac{v_f\,c_0}{2 f_0}"></div>
+        <div class="eq" data-tex="\Gamma(\omega) = \alpha + \frac{i\omega}{v_f\,c_0}"></div>
+        <div class="eq" data-tex="Z_{0,i} = \sqrt{\frac{R_c + i\omega L_c}{i\omega\, C'\ell_i}}, \qquad R_c = 2\cdot 50\,\Omega\cdot\alpha"></div>
+        <div class="eq" data-tex="\mathcal{T}_i[Z] = Z_{0,i}\,\frac{Z + Z_{0,i}\tanh \Gamma\ell_i}{Z_{0,i} + Z\tanh \Gamma\ell_i}"></div>
+        <p><span data-tex="n_i"></span> is the cable length control, <span data-tex="C'"></span> the cable
+          capacitance per meter and <span data-tex="L_c"></span> the cable inductance.</p>
+      </div>
+
+      <div class="eqcard">
+        <h3>Coil and proton signal</h3>
+        <div class="eq" data-tex="Z_L = \left(R_\text{coil} + i\omega L\right) \parallel \frac{1}{i\omega C_s}"></div>
+        <div class="eq" data-tex="L(\omega) = L_0\left[\,1 + 4\pi\eta\,\chi(\omega)\,\right], \qquad \chi = \chi' - i\chi''"></div>
+        <div class="eq" data-tex="\chi_p = -i\,\frac{1.035\,\chi_0\,\omega_0}{\Delta\omega}\;\frac{1}{1 + 4x^{2.35}}, \qquad x = \frac{\omega-\omega_0}{\Delta\omega}"></div>
+        <p>with <span data-tex="\chi_0 = 3.1\times10^{-4}\,P"></span> (Seely), the lineshape of Hill &amp; Hill,
+          <span data-tex="\Delta\omega = 2\pi\cdot 60\text{ kHz}"></span> and filling factor
+          <span data-tex="\eta"></span>. Below resonance the power is the principal complex value, as in the
+          notebook. With the signal off, <span data-tex="L = L_0"></span>.</p>
+      </div>
+
+      <div class="eqcard">
+        <h3>Deuteron signal</h3>
+        <div class="eq" data-tex="\chi_d'' \propto I_+F_+(R) + I_-F_-(R), \qquad R = \frac{\omega-\omega_0}{3\,\omega_Q}"></div>
+        <div class="eq" data-tex="I_\pm \approx \frac{r(r-1)}{r^2+r+1},\ \frac{r-1}{r^2+r+1}, \qquad P = \frac{r^2-1}{r^2+r+1}"></div>
+        <div class="eq" data-tex="\int \chi''\,d\omega = \frac{\pi}{2}\,\omega_0\chi_0, \qquad \chi_0 = 3.1\times10^{-4}\,\frac{2\gamma_d}{\gamma_p}\,P"></div>
+        <div class="eq" data-tex="\chi_d' = -\mathcal{H}\big[\chi_d''\big] = -\sum_{\epsilon=\pm} \epsilon\,\tfrac{\pi}{2}\,I_\epsilon D_\epsilon(R)"></div>
+        <p><span data-tex="F_\pm"></span> and <span data-tex="D_\pm"></span> are the powder-averaged
+          absorption and dispersion integrals of Dulya <i>et al.</i>, with broadening <span data-tex="A"></span>
+          and EFG asymmetry <span data-tex="\eta"></span>; the full <span data-tex="I_\pm"></span> include
+          a small <span data-tex="R"></span> dependence. <span data-tex="\chi_0"></span> scales Seely's proton
+          value by the spin-1 magnetization at the same density. <span data-tex="\mathcal{H}"></span> is the
+          Hilbert transform, which makes <span data-tex="\chi'"></span> the Kramers–Kronig partner of
+          <span data-tex="\chi''"></span>.</p>
+      </div>
+
+      <div class="eqcard">
+        <h3>Tank, supply and signal line</h3>
+        <div class="eq" data-tex="Z_\text{tank} = R_D + \frac{1}{i\omega C} + \mathcal{T}_\text{coil}[Z_L]"></div>
+        <div class="eq" data-tex="Z_\text{cc} = R_\text{cc} + \Big(\tfrac{1}{50\,\Omega} + \tfrac{1}{\mathcal{T}_\text{sup}[R_s]}\Big)^{-1}"></div>
+        <div class="eq" data-tex="Z_\text{eq} = Z_\text{tank} \parallel Z_\text{cc}, \qquad Z_\text{tot} = \mathcal{T}_\text{sig}[Z_\text{eq}]"></div>
+        <p><span data-tex="R_D"></span> is the damping resistor, <span data-tex="R_s"></span> the source
+          impedance, and the 50 Ω is the termination to ground.</p>
+      </div>
+
+      <div class="eqcard">
+        <h3>Voltages at the mixer</h3>
+        <div class="eq" data-tex="V_\text{eq} = U\,\frac{Z_\text{tank}}{Z_\text{tank} + Z_\text{cc}}, \qquad V_\text{rf} = V_\text{eq}\,\frac{R_\text{amp}}{R_\text{amp} + Z_\text{tot}}"></div>
+        <div class="eq" data-tex="Z_\text{ref} = \Big(\tfrac{1}{\mathcal{T}_\text{ref}[R_s]} + \tfrac{1}{50\,\Omega}\Big)^{-1}, \qquad V_\text{ref} = U\,\frac{R_\text{amp}}{R_\text{amp} + Z_\text{ref}}"></div>
+        <div class="eq" data-tex="\text{diode} = \big|V_\text{rf}\,e^{i\phi}\big|, \qquad \text{phase} = -\operatorname{Re}\!\big(V_\text{rf}\,V_\text{ref}\,e^{i\phi}\big)"></div>
+      </div>
+
+      <div class="eqcard">
+        <h3>The Tune buttons</h3>
+        <div class="eq" data-tex="\text{Diode: find } c \text{ such that } \left.\frac{\partial\,|V_\text{rf}|}{\partial\omega}\right|_{\omega_0} = 0"></div>
+        <div class="eq" data-tex="\text{Phase: } \phi = \pm\frac{\pi}{2} - \arg\left.\frac{\partial\,(V_\text{rf}V_\text{ref})}{\partial\omega}\right|_{\omega_0}"></div>
+        <p>Both use the baseline (signal off) and leave cable lengths alone. Diode tune scans
+          <span data-tex="0.02 \le c \le 50"></span> for the dip and refines it by bisection. Phase tune
+          first does the diode tune, then picks the root that makes the phase output an extremum at
+          <span data-tex="\omega_0"></span> with the same orientation as the ideal zero-length circuit.</p>
+      </div>
+    </div>
+  </details>
+
+  <section class="notes">
+    <h3>References</h3>
+    <ul>
+      <li>J.D. Maxwell, J. Brock, C. Cuevas, H. Dong, C.D. Keith, J.J. Pierce, “A new cw-NMR Q-meter for
+        dynamically polarized targets for particle physics,” NIM A 1087 (2026) 171417.
+        <a href="https://doi.org/10.1016/j.nima.2026.171417">doi:10.1016/j.nima.2026.171417</a></li>
+      <li>G.R. Court, M.A. Houlden <i>et al.</i>, “High precision measurement of the polarization in solid state
+        polarized targets using NMR,” NIM A 527 (2004) 253–263.
+        <a href="https://doi.org/10.1016/j.nima.2004.02.041">doi:10.1016/j.nima.2004.02.041</a></li>
+      <li>J.J. Hill, D.A. Hill, “Simple correction for Q-meter measurement of proton target polarization,”
+        NIM 116 (1974) 269–274. <a href="https://doi.org/10.1016/0029-554X(74)90613-2">doi:10.1016/0029-554X(74)90613-2</a></li>
+      <li>Seely <i>et al.</i>, “Simulation and Tuning of the TUNL NMR System,” Proceedings of the Workshop on NMR
+        in Polarized Targets (1998).</li>
+      <li>C. Dulya <i>et al.</i>, “A line-shape analysis for spin-1 NMR signals,” NIM A 398 (1997) 109–125.
+        <a href="https://doi.org/10.1016/S0168-9002(97)00317-3">doi:10.1016/S0168-9002(97)00317-3</a></li>
+      <li>Yu.F. Kisselev, C.M. Dulya, T.O. Niinikoski, “Measurement of complex RF susceptibility using a series
+        Q-meter,” NIM A 354 (1995) 249–261.
+        <a href="https://doi.org/10.1016/0168-9002(94)01066-8">doi:10.1016/0168-9002(94)01066-8</a></li>
+      <li>M. McClellan, “Complex deuteron NMR signals,” Eur. Phys. J. A 61, 176 (2025).
+        <a href="https://doi.org/10.1140/epja/s10050-025-01644-z">doi:10.1140/epja/s10050-025-01644-z</a></li>
+    </ul>
+  </section>
+
+  <footer class="site">Source, Jupyter notebook and validation test:
+    <a href="https://github.com/jdmax/QMeterSim">github.com/jdmax/QMeterSim</a>.
+    Deuteron lineshape from <a href="https://github.com/jdmax/DeuteronPeakFit">DeuteronPeakFit</a>; analysis
+    after <a href="https://github.com/jdmax/NMR_Analysis">NMR_Analysis</a> and
+    <a href="https://github.com/jdmax/rgc_offline">rgc_offline</a>.
+    Written in 2019 by <a href="https://orcid.org/0000-0003-2710-4646">J. Maxwell</a>,
+    <a href="https://www.jlab.org">Jefferson Lab</a> Target Group.
+    © 2024 James Maxwell, <a href="https://github.com/jdmax/QMeterSim/blob/master/LICENSE">MIT license</a>.</footer>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" defer></script>
+<script src="app.js?v=__V__" defer></script>
+</body>
+</html>
