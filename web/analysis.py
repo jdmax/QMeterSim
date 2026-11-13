@@ -55,18 +55,20 @@ def analyze_sweep(f, raw, baseline, wings, sum_range, order):
     return dict(basesub=basesub, fit=fit, sub=sub, area=float(sub[sum_mask].sum()))
 
 
-def _pedestal_index(f, sm, i_pk, direction, floor=0.01, flat=0.2, steepen=1.5, tol=0.001):
-    """Index of the flattest point of the outer step beyond the horn at i_pk, or None.
+def _plateau(f, sm, i_pk, direction, floor=0.01, flat=0.2, steepen=1.5, tol=0.001, straight=0.5, fl=0.01):
+    """(first, last) indices of the straight stretch of the step beyond the horn at i_pk, or None.
 
     Moving away from the line center (direction -1 below it, +1 above), the smoothed signal sm falls down
     the horn's flank, levels off on the other transition's plateau, then drops again at that plateau's
     outer edge. The search starts at the flank's steepest point, so it can't land on the horn. It ends
     at the plateau's edge, where the slope is `steepen` times the flattest slope so far (plus `tol` of
     the flank's slope, so noise doesn't end it early), or where the signal falls below `floor` of the
-    peak. The point of least slope in between is the pedestal. None is returned if no plateau is found:
-    if the search never reaches the plateau's edge, or the slope there isn't below `flat` times the
-    flank's slope. That happens when the line is too broad for the horn and step to separate, or when
-    dispersion mixed into the signal distorts it.
+    peak. Around the flattest point in between, the stretch extends as long as the slope stays within
+    `straight` of the flattest slope (or `fl` of the flank's slope, if larger), so a line fits it.
+    None is returned if no plateau is found: if the search never reaches the plateau's edge, the slope
+    there isn't below `flat` times the flank's slope, or the stretch has fewer than 3 points. That happens
+    when the line is too broad for the horn and step to separate, or when dispersion mixed into the
+    signal distorts it.
     """
     n = len(sm)
     d = np.gradient(sm, f) * direction             # slope moving outward; negative while falling
@@ -88,7 +90,25 @@ def _pedestal_index(f, sm, i_pk, direction, floor=0.01, flat=0.2, steepen=1.5, t
             break                                  # steepening again: the plateau's outer edge
     if abs(d[best]) > flat * flank or best == j0:
         return None
-    return int(best)
+    lim = straight * max(abs(d[best]), fl * flank)
+    inner, outer = best, best
+    while inner - direction != j0 and abs(d[inner - direction] - d[best]) <= lim:
+        inner -= direction
+    while outer + direction != j and abs(d[outer + direction] - d[best]) <= lim:
+        outer += direction
+    if abs(outer - inner) < 2:
+        return None
+    return int(inner), int(outer)
+
+
+def _horn(s, mask):
+    """Index of the highest local maximum of s within mask, or None. (The highest point in the window
+    isn't always a horn: at high polarization, the strong transition near the line center is taller
+    than the weak transition's horn.)"""
+    idx = np.nonzero(mask)[0]
+    idx = idx[(idx > 0) & (idx < len(s) - 1)]
+    idx = idx[(s[idx] >= s[idx - 1]) & (s[idx] > s[idx + 1]) & mask[idx - 1] & mask[idx + 1]]
+    return int(idx[np.argmax(s[idx])]) if idx.size else None
 
 
 def peak_ratio(f, sub, area, f0):
@@ -96,29 +116,39 @@ def peak_ratio(f, sub, area, f0):
 
     The m=+1 transition's peak is above the Larmor frequency and the m=-1 peak below; their intensities
     are in the ratio of the populations, r = I+/I-. Each peak sits on the plateau of the other transition,
-    so its height is measured from that plateau: from the flattest point of the step just outside the
-    peak (the pedestal) up to the peak. Then r = H+/H-. The plateau rises a little toward the line
-    center, so the pedestal under the peak is somewhat higher than where it's read, and a bias of a few %
-    in P remains. If either pedestal can't be found (a very broad line), the raw peak heights are used
-    and `pedestal` is False. Sign is taken from the area so the estimate does not depend on the
-    Q-meter's output polarity.
+    which slopes up toward the line center, so its height is measured from a straight line drawn along
+    that plateau, the step just outside the peak, and carried in under the peak (the pedestal). Then
+    r = H+/H-. If either pedestal can't be found (a very broad line, or dispersion mixed into the
+    signal), the raw peak heights are used and `pedestal` is False. Sign is taken from the area so the
+    estimate does not depend on the Q-meter's output polarity.
+
+    With a pedestal, the result also has ped_lo/ped_hi, the pedestal line's value under each peak, and
+    line_lo/line_hi, [f_outer, y_outer, f_inner, y_inner, f_peak, y_peak] along that line: the stretch
+    it was fitted to, and its value under the peak.
     """
     sgn = np.sign(area or 1.0)
     s = sub * sgn
     win = 0.5  # MHz either side
-    hi = (f > f0) & (f < f0 + win)
-    lo = (f < f0) & (f > f0 - win)
-    if not hi.any() or not lo.any():
+    i_hi = _horn(s, (f > f0) & (f < f0 + win))
+    i_lo = _horn(s, (f < f0) & (f > f0 - win))
+    if i_hi is None or i_lo is None:
         return None
-    i_hi = int(np.nonzero(hi)[0][np.argmax(s[hi])])
-    i_lo = int(np.nonzero(lo)[0][np.argmax(s[lo])])
 
     sm = np.convolve(np.pad(s, 2, mode='edge'), np.ones(5) / 5, mode='valid')   # light smoothing for slopes
-    p_lo = _pedestal_index(f, sm, i_lo, -1)
-    p_hi = _pedestal_index(f, sm, i_hi, +1)
-    pedestal = p_lo is not None and p_hi is not None
-    ped_lo = float(sm[p_lo]) if pedestal else 0.0
-    ped_hi = float(sm[p_hi]) if pedestal else 0.0
+    lines = {}
+    for name, i_pk, direction in (('lo', i_lo, -1), ('hi', i_hi, +1)):
+        stretch = _plateau(f, sm, i_pk, direction)
+        if stretch is None:
+            break
+        inner, outer = stretch
+        j = np.arange(min(inner, outer), max(inner, outer) + 1)
+        slope, under = np.polyfit(f[j] - f[i_pk], s[j], 1)    # straight line, evaluated under the peak
+        at = lambda k: float(under + slope * (f[k] - f[i_pk]))
+        lines[name] = (float(under), [float(f[outer]), at(outer) * sgn, float(f[inner]), at(inner) * sgn,
+                                      float(f[i_pk]), float(under) * sgn])
+    pedestal = len(lines) == 2
+    ped_lo = lines['lo'][0] if pedestal else 0.0
+    ped_hi = lines['hi'][0] if pedestal else 0.0
     h_hi, h_lo = float(s[i_hi]) - ped_hi, float(s[i_lo]) - ped_lo
     if h_lo <= 0 or h_hi <= 0:
         return None
@@ -126,7 +156,7 @@ def peak_ratio(f, sub, area, f0):
     out = dict(r=r, pol=float(deuteron_lineshape.pol_from_r(r)), pedestal=pedestal,
                f_hi=float(f[i_hi]), f_lo=float(f[i_lo]), h_hi=float(s[i_hi] * sgn), h_lo=float(s[i_lo] * sgn))
     if pedestal:
-        out.update(f_ped_hi=float(f[p_hi]), f_ped_lo=float(f[p_lo]), ped_hi=ped_hi * sgn, ped_lo=ped_lo * sgn)
+        out.update(ped_hi=ped_hi * sgn, ped_lo=ped_lo * sgn, line_hi=lines['hi'][1], line_lo=lines['lo'][1])
     return out
 
 

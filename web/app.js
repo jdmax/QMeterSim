@@ -469,12 +469,14 @@ function renderAnalysis() {
       points.push({ x: rt.f_hi, y: rt.h_hi, color: css("--ink") });
       points.push({ x: rt.f_lo, y: rt.h_lo, color: css("--ink") });
       if (rt.pedestal) {
-        // the pedestal level, carried in from where it's read to under the peak, and the height above it
+        // pedestal line: solid where it's fitted along the plateau, dashed where it's carried in under the
+        // peak; then the height above it
         const ink = css("--ink");
-        for (const [fp, yp, fk, yk] of [[rt.f_ped_lo, rt.ped_lo, rt.f_lo, rt.h_lo], [rt.f_ped_hi, rt.ped_hi, rt.f_hi, rt.h_hi]]) {
-          segs.push({ x0: fp, y0: yp, x1: fk, y1: yp, color: ink, width: 1.4, dash: [4, 3] });
-          segs.push({ x0: fk, y0: yp, x1: fk, y1: yk, color: ink, width: 1.6 });
-          points.push({ x: fp, y: yp, color: ink, r: 3 });
+        for (const [L, yk] of [[rt.line_lo, rt.h_lo], [rt.line_hi, rt.h_hi]]) {
+          const [fo, yo, fi, yi, fk, yu] = L;
+          segs.push({ x0: fo, y0: yo, x1: fi, y1: yi, color: ink, width: 2.4 });
+          segs.push({ x0: fi, y0: yi, x1: fk, y1: yu, color: ink, width: 1.4, dash: [4, 3] });
+          segs.push({ x0: fk, y0: yu, x1: fk, y1: yk, color: ink, width: 1.6 });
         }
       }
     }

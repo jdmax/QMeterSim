@@ -169,15 +169,17 @@ def test_analysis():
     for p in (0.3, -0.3):
         a = analysis.analyze(dict(species='d', pol=p))
         assert abs(a['pol_area'] - p) < 0.002 and abs(a['fit']['pol'] - p) < 0.005, (p, a['pol_area'], a['fit']['pol'])
-    # peak-height ratio measured above the pedestal: within ~10% of P (the raw ratio is ~30% low), pedestals read
-    # outside each peak; a line too broad to resolve the step falls back to the raw heights
-    for p in (0.3, -0.3, 0.1):
+    # peak-height ratio measured above a sloped pedestal line: within 1.5% (absolute) of P for a narrow line (the
+    # raw ratio is ~30% low), including high P where the weak horn is lower than the strong transition's center;
+    # the line is fitted outside each peak; a line too broad to resolve the step falls back to the raw heights
+    for p in (0.9, 0.3, -0.3, 0.1):
         rt = analysis.analyze(dict(species='d', pol=p))['ratio']
-        assert rt['pedestal'] and abs(rt['pol'] / p - 1) < 0.1, (p, rt)
-        assert rt['f_ped_lo'] < rt['f_lo'] and rt['f_ped_hi'] > rt['f_hi'], rt
+        assert rt['pedestal'] and abs(rt['pol'] - p) < 0.015, (p, rt)
+        lo, hi = rt['line_lo'], rt['line_hi']
+        assert lo[0] < lo[2] < rt['f_lo'] == lo[4] and hi[0] > hi[2] > rt['f_hi'] == hi[4], rt
         assert abs(rt['ped_lo']) < abs(rt['h_lo']) and abs(rt['ped_hi']) < abs(rt['h_hi']), rt
     rt = analysis.analyze(dict(species='d', pol=0.3, d_A=0.3))['ratio']
-    assert rt is not None and not rt['pedestal'] and 'f_ped_lo' not in rt, rt
+    assert rt is not None and not rt['pedestal'] and 'line_lo' not in rt, rt
     # a large proton signal is not: the Q-meter response saturates, so the area under-reads
     a = analysis.analyze(dict(species='p', pol=0.9))
     assert 0.8 < a['pol_area'] < 0.9

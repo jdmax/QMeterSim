@@ -123,12 +123,13 @@
         the two transitions' intensities are in the ratio
         <span data-tex="r = I_+/I_-"></span> and <span data-tex="P = (r^2-1)/(r^2+r+1)"></span>.
         The quick estimate takes <span data-tex="r = H_+/H_-"></span>, the ratio of the two peak heights.
-        Each peak sits on the other transition's plateau, so its height is measured from that plateau, read
-        at the flattest point of the step just outside the peak (dashed lines on plot 3). Without this
-        subtraction the ratio is pulled toward 1. The plateau rises a little toward the line center, so the
-        pedestal under each peak is somewhat higher than where it's read, and a bias of a few % in
-        <span data-tex="P"></span> remains. For a broad line, where the step and the peak merge, no
-        pedestal can be found and the raw heights are used. A fit of the full lineshape, as in
+        Each peak sits on the other transition's plateau, which slopes up toward the line center. So a
+        straight line is drawn along the plateau on the step just outside each peak and carried in under
+        the peak, and the height is measured from that line (plot 3). Without this subtraction the ratio
+        is pulled toward 1. For a narrow line this comes within about 1% (absolute) of the true
+        polarization, but it over-reads as the line broadens and the peaks' tails lean on the plateau.
+        Where the step and the peak merge, no pedestal can be found and the raw heights are used. A fit of
+        the full lineshape, as in
         <a href="https://github.com/jdmax/DeuteronPeakFit">DeuteronPeakFit</a>, does better, but only if the
         output is pure absorption: cables rotate the signal's phase and mix in dispersion. The complex fit adds
         a phase angle to absorb this. Try both before and after pressing the phase plot's Tune button.</li>
