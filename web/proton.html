@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Proton Line and Polarization</title>
-<meta name="description" content="How the proton NMR line of a polarized target changes while the polarization moves: spin-ups, knock-downs and reversals of a 5 T target, and the model used in the Q-meter simulator.">
+<meta name="description" content="How the proton NMR line of a polarized target changes while the polarization moves: spin-ups and reversals of a 5 T target, and the model used in the Q-meter simulator.">
 <meta name="author" content="J. Maxwell">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,7 +21,7 @@
     <p>A proton NMR line is not a fixed shape. As a target polarizes, the line moves away from where it sits at
       zero polarization and sharpens on that side, while its area keeps tracking the polarization. And when the
       polarization moves quickly, the shape also depends on how it got there. This page follows a 5 T target
-      through eight such episodes in 2022, spin-ups, knock-downs and reversals, and shows the model of the line
+      through four such episodes in 2022, two spin-ups and two reversals, and shows the model of the line
       that the simulator uses.</p>
   </header>
 
@@ -30,8 +30,8 @@
     <p>Proton event logs from three runs of a 5 T polarized target: 512-point sweeps of ±400 kHz about
       212.882 MHz, each event the average of 1000–4000 sweeps taken in 20 to 80 seconds, baseline- and
       polynomial-subtracted as described on the <a href="./">simulator page</a>. Most of each run is a plateau.
-      The eight shaded episodes are where the polarization moves; pick one in the table to follow it through
-      the page.</p>
+      The four shaded episodes are where the polarization moves; pick one in the table to follow it through
+      the page. The sharp knock-downs and re-polarizations of 16 September are left out.</p>
     <div class="stage trio">
       <div class="card flat">
         <div class="card-head"><h2>July</h2></div>
@@ -51,7 +51,7 @@
     </div>
     <div class="legend-line" id="kindLegend"></div>
     <div class="tablewrap">
-      <table class="eptable" id="epTable" aria-label="The eight episodes">
+      <table class="eptable" id="epTable" aria-label="The four episodes">
         <thead><tr><th scope="col">#</th><th scope="col">Start (UTC)</th><th scope="col">Episode</th>
           <th scope="col">Polarization</th><th scope="col" title="Time taken by the middle 80% of the change in polarization">Middle 80% of the change</th></tr></thead>
         <tbody></tbody>
@@ -89,7 +89,7 @@
     <h2 id="changeHead">What changes, and how it depends on the path</h2>
     <p>Every event of every episode, measured the same way: where the line's center of area sits, how far it
       extends on each side of the peak at half height, and how tall it is for its area. Each episode is a path
-      across the plot; rises run left to right, knock-downs and reversals right to left. The episode chosen
+      across the plot; spin-ups run left to right, reversals right to left. The episode chosen
       above is drawn heavier. If the line depended only on the polarization, all the paths would lie on one
       curve. The dashed curve is the model below.</p>
     <div class="stage">
@@ -175,7 +175,7 @@
           at its own polarization. When the microwaves drive the polarization quickly, some parts lead and
           others lag. The sum is then broader than the line of an evenly polarized sample with the same area,
           with extra weight on the side toward zero polarization. Nuclear spin diffusion is far
-          too slow to even this out across millimetres, so the shape stays after the microwaves go off.</p>
+          too slow to even this out across millimetres.</p>
       </div>
     </div>
     <p class="after-eq" id="mixText"></p>
@@ -197,9 +197,8 @@
       (<span id="sPos">18.6</span> kHz) for positive <span data-tex="P"></span>, and
       <span data-tex="A_-"></span> and <span data-tex="s_-"></span> (<span id="sNeg">16.1</span> kHz) for
       negative. <span data-tex="A_0"></span>, the line at <span data-tex="P = 0"></span>, is shared, so the
-      shape is continuous through zero. <span id="errText"></span> Lines from knock-downs, from the passage
-      through zero, and from the start of a build-up that follows either (below
-      <span id="settleText">30%</span>) are not fitted, because they are not the line of an evenly polarized
+      shape is continuous through zero. <span id="errText"></span> Lines from the passage through zero, and
+      from the start of the build-up after it (below <span id="settleText">30%</span>), are not fitted, because they are not the line of an evenly polarized
       sample. Beyond the measured range, <span id="rangeText">−73% to 78%</span>, the shape is held, and only
       the shift and the size follow <span data-tex="P"></span>. The dispersion that goes with each line is its
       exact Kramers–Kronig partner, and the area is independent of <span data-tex="P"></span>, so a TE
@@ -240,10 +239,10 @@
     <ul class="plain">
       <li><b>Integrate, don't read the peak.</b> Polarization is proportional to the area of the line, and that
         is what a TE calibration transfers. The peak height is not: for the same area the peak is about a
-        seventh taller at 78% than near zero, a negative line gains almost nothing, and a line taken just after
-        a knock-down is lower still.</li>
-      <li><b>Leave room for the shift.</b> Between TE and 78% the center of the line moves up by about 15 kHz
-        and its peak by about 25 kHz; at −73% they move down by about 12 and 24 kHz. The integration range and
+        sixth taller at 78% than near zero, a negative line gains almost nothing, and a line on its way down
+        through a reversal can be lower still.</li>
+      <li><b>Leave room for the shift.</b> Between TE and 78% the center of the line moves up by about 16 kHz
+        and its peak by about 26 kHz; at −73% they move down by about 12 and 24 kHz. The integration range and
         the polynomial-fit wings need margin on the side the line moves to.</li>
       <li><b>Asymmetry is not a phase error.</b> A phase error mixes in the dispersion, which is antisymmetric:
         it pushes the line up on one side and below zero on the other. The polarization asymmetry keeps a

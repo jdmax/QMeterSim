@@ -4,8 +4,9 @@
 
 The logs (one JSON event per line, as written by the JLab NMR DAQ) are not in the repository; temp/ is
 git-ignored. They hold three runs of a 5 T polarized target in 2022 (July, September, October), split here
-wherever the logs have a gap of more than a day. Most of each run is a plateau. This script works on the
-EPISODES below, the stretches where the polarization moves quickly: spin-ups, knock-downs and reversals.
+wherever the logs have a gap of more than a day. Most of each run is a plateau. This script works on the four
+EPISODES below, the stretches where the polarization moves quickly: two spin-ups and two reversals. The sharp
+knock-downs and re-polarizations of 16 September are not used.
 
 From them it
 
@@ -16,11 +17,11 @@ From them it
      with P+ = max(P, 0), P- = min(P, 0) and s(P) = s_pos P+ + s_neg P-, to the lines taken while the size of
      the polarization was growing: the rises, the build-up after each reversal, and the plateau before each
      reversal,
-  3. tests whether lines taken during fast changes are mixes of two slow spin-up lines, and
+  3. tests whether lines taken during the September reversal are mixes of two slow spin-up lines, and
   4. writes web/proton_lineshape.py (the simulator's model) and web/proton_data.json (the proton page's data).
 
-Lines with both signs at once (during a reversal) and lines from knock-downs are measured and shown but not
-fitted: their shape depends on how the polarization got there, not only on its value.
+Lines from the passage through zero, some with both signs at once, are measured and shown but not fitted: their
+shape depends on how the polarization got there, not only on its value.
 """
 
 import glob
@@ -39,29 +40,21 @@ RUN_GAP_S = 86400                              # a gap this long in the logs sta
 SKIP_LABELS = ('Junk', 'Baseline')             # events the operators marked as not a signal
 RUN_NAMES = {7: ('jul', 'July'), 9: ('sep', 'September'), 10: ('oct', 'October')}
 
-# The stretches where the polarization moves, by UTC time. kind: rise, fall or reversal. settle marks a build-up
-# that starts from a knocked-down or reversed sample: its first lines still carry the shape left by what came
-# before, so they are fitted only once |P| has grown past SETTLE_POL.
+# The stretches where the polarization moves, by UTC time. kind: rise or reversal. settle marks a build-up that
+# starts from a reversed sample: its first lines still carry the shape left by what came before, so they are
+# fitted only once |P| has grown past SETTLE_POL.
 EPISODES = (
     dict(id='jul-reversal', kind='reversal', settle=True, start='2022-07-03 14:07:00', end='2022-07-03 21:00:00',
          title='Reversal', what='Microwaves moved from 140.12 to 140.46 GHz, the other side of the electron line.'),
     dict(id='sep-spinup', kind='rise', start='2022-09-15 00:36:00', end='2022-09-15 02:50:00',
          title='Spin-up from thermal equilibrium',
          what='Microwaves switched on at 140.2 GHz and stepped down to 140.1 GHz as the polarization grew.'),
-    dict(id='sep-knock1', kind='fall', start='2022-09-16 16:57:30', end='2022-09-16 17:15:00',
-         title='Knock-down', what='Microwaves at 140.47 GHz for one minute, then off.'),
-    dict(id='sep-repol1', kind='rise', start='2022-09-16 18:36:30', end='2022-09-16 19:15:40',
-         title='Re-polarization from zero', what='Microwaves on at 140.21 GHz after a new baseline, stepped down to 140.16 GHz.'),
-    dict(id='sep-knock2', kind='fall', start='2022-09-16 19:15:40', end='2022-09-16 19:37:30',
-         title='Knock-down', what='Microwaves at 140.31 GHz, between the two polarizing frequencies, for six minutes, then off.'),
-    dict(id='sep-repol2', kind='rise', settle=True, start='2022-09-16 19:37:30', end='2022-09-16 20:05:00',
-         title='Re-polarization from 16%', what='Microwaves back on at 140.17 GHz.'),
     dict(id='sep-reversal', kind='reversal', settle=True, start='2022-09-17 01:26:40', end='2022-09-17 03:30:00',
          title='Reversal', what='Microwaves moved from 140.16 to 140.47 GHz.'),
     dict(id='oct-rise', kind='rise', start='2022-10-09 05:19:00', end='2022-10-09 05:50:00',
          title='Fast rise', what='The polarization appears at 24% and reaches 74% in nine minutes.'),
 )
-N_LINES = {'rise': 12, 'fall': 10, 'reversal': 14}   # example lines per episode
+N_LINES = {'rise': 12, 'reversal': 14}   # example lines per episode
 ANCHOR_S = 900                                 # reversals: the plateau is the 15 minutes before the episode
 SETTLE_POL = 0.30
 MIN_POL = 0.05                                 # smaller lines are too noisy to measure one event at a time
@@ -367,8 +360,8 @@ longer tail, so each sign has its own change of shape (the two shifts come out n
 with x the offset from the Larmor frequency f0 in kHz. A0, APOS and ANEG come from a least squares fit to the
 lines. Half of them are reproduced within {err_median:.0f}% of their peak, nine in ten within {err_p90:.0f}%, and all within
 {err_max:.0f}%. The shape of a line also depends on how fast the polarization is changing and from where, which a
-function of P alone cannot follow: lines from knock-downs, from the passage through zero and from the start of
-the build-up that follows either (|P| below {settle:.2f}) are not fitted. A0, the line at P = 0, is shared by both signs. Beyond the
+function of P alone cannot follow: lines from the passage through zero and from the start of the build-up that
+follows it (|P| below {settle:.2f}) are not fitted. A0, the line at P = 0, is shared by both signs. Beyond the
 measured range, P < {pmin:.2f} or P > {pmax:.2f}, the shape is held at its value at the end of the range and only the
 shift and the size follow P. The integrals of APOS and ANEG are zero, so the area does not depend on P. Faint
 tails are smoothed and both ends tapered to zero; samples every {step:.4f} kHz.
@@ -561,7 +554,7 @@ def main():
             for ln in fitted:
                 if ln['ep'] is ep:
                     print(f"      {ln['kind']:8s} P = {ln['pol']:+.3f}  n = {ln['n']:3d}  error {100 * ln['err']:.1f}%")
-    for kind in ('rise', 'fall', 'reversal'):
+    for kind in ('rise', 'reversal'):
         m = [r for r in mixes if next(e for e in eps if e['id'] == r['ep'])['kind'] == kind]
         if m:
             print(f"  mix test, {kind}: one P {100 * min(r['single'] for r in m):.0f}-{100 * max(r['single'] for r in m):.0f}%"

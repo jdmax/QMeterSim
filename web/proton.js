@@ -33,7 +33,7 @@ function colorOf(p) {
 }
 const signColor = (p) => colorOf(p < 0 ? -0.6 : 0.6);
 // episode kinds, one hue each
-const KIND = { rise: { v: "--k-rise", name: "rise" }, fall: { v: "--k-fall", name: "knock-down" }, reversal: { v: "--k-rev", name: "reversal" } };
+const KIND = { rise: { v: "--k-rise", name: "spin-up" }, reversal: { v: "--k-rev", name: "reversal" } };
 const kindColor = (k) => css(KIND[k].v);
 
 const pct = (p, d = 1) => `${p < 0 ? "−" : ""}${Math.abs(100 * p).toFixed(d)}%`;
@@ -445,28 +445,24 @@ function fillText() {
   const m = model, at = 0.4;
   const w = (id) => { const e = epOf(id), v = e && valueAt(e, "lo", at); return v == null ? null : `${v.toFixed(1)} kHz (${e.n})`; };
   const pk = (id) => { const e = epOf(id), v = e && valueAt(e, "pk", at); return v == null ? null : `×${(v / m.peak0).toFixed(2)} (${e.n})`; };
-  const hold = epOf("sep-knock2"), ht = hold.traj;
-  const iOff = ht.pol.findIndex((p, i) => i > 3 && Math.abs(p - hold.p_to) < 0.01);
-  const mean = (a) => a.reduce((s, v) => s + v, 0) / a.length;
-  const lo0 = mean(ht.lo.slice(iOff, iOff + 8)), lo1 = mean(ht.lo.slice(-8));
-  const held = ht.minutes[ht.minutes.length - 1] - ht.minutes[iOff];
   const P1 = m.pol_max, P2 = m.pol_min;
   $("findings").innerHTML = [
     `While the polarization grows, the center of area moves about <b>${m.shift_pos.toFixed(0)} kHz per unit P</b> upward for positive polarization and <b>${m.shift_neg.toFixed(0)} kHz</b> downward for negative: ${sgn(curveAt("c", P1))} kHz at ${pct(P1, 0)} and ${sgn(curveAt("c", P2))} kHz at ${pct(P2, 0)}. The peak moves further, to ${sgn(curveAt("xp", P1))} and ${sgn(curveAt("xp", P2))} kHz, because the shape changes too.`,
     `Near P = 0 the line is nearly symmetric and ${(curveAt("lo", 0) + curveAt("hi", 0)).toFixed(0)} kHz wide at half height. At ${pct(P1, 0)} it is ${(curveAt("lo", P1) + curveAt("hi", P1)).toFixed(0)} kHz wide with its sharp edge above the peak (${curveAt("hi", P1).toFixed(0)} kHz above, ${curveAt("lo", P1).toFixed(0)} below). At ${pct(P2, 0)} the sharp edge is below the peak (${curveAt("lo", P2).toFixed(0)} kHz below, ${curveAt("hi", P2).toFixed(0)} above): nearly the mirror image, with a longer tail.`,
-    `<b>The path matters.</b> At ${pct(at, 0)} the half width below the peak is ${w("sep-spinup")} in the two-hour spin-up, ${[w("sep-repol1"), w("sep-repol2"), w("oct-rise")].filter(Boolean).join(", ")} in the fast rises, and ${[w("sep-knock1"), w("sep-knock2"), w("sep-reversal")].filter(Boolean).join(", ")} on the way down (episode numbers in brackets). The peak for the area runs the other way: ${pk("sep-spinup")}, against ${[pk("sep-knock2"), pk("sep-reversal")].filter(Boolean).join(" and ")}. The faster the change, and especially on the way down, the more the side of the line toward P = 0 fills in.`,
-    `<b>The shape does not relax when the microwaves go off.</b> After knock-down ${hold.n} the polarization sat at ${pct(hold.p_to, 0)} for ${mins(held)} with the microwaves off. The half width below the peak was ${lo0.toFixed(1)} kHz at the start of that time and ${lo1.toFixed(1)} kHz at the end, against ${curveAt("lo", hold.p_to).toFixed(1)} kHz for the model at the same polarization.`,
+    `<b>The path matters.</b> At ${pct(at, 0)} the half width below the peak is ${w("sep-spinup")} in the two-hour spin-up and ${w("oct-rise")} in the nine-minute rise (episode numbers in brackets), and the peak for the area is ${pk("sep-spinup")} and ${pk("oct-rise")}: the faster rise fills in the side of the line toward P = 0.`,
+    `<b>The two reversals go opposite ways on the way down.</b> At ${pct(at, 0)} the September line has broadened, to ${w("sep-reversal")} below the peak and a peak for the area of ${pk("sep-reversal")}. The July line has narrowed, to ${w("jul-reversal")} and ${pk("jul-reversal")}, because its low-frequency side is already turning negative.`,
     `The area per unit P is constant within each run by construction, since the logged polarization is the calibrated area.`,
   ].map((s) => `<li>${s}</li>`).join("");
 
   // the mix test
   const by = (kinds) => D.mix.filter((r) => kinds.includes(epOf(r.ep).kind));
   const rng = (rows, k) => `${Math.round(100 * Math.min(...rows.map((r) => r[k])))}–${Math.round(100 * Math.max(...rows.map((r) => r[k])))}%`;
-  const up = by(["rise"]), down = by(["fall", "reversal"]);
-  $("mixText").innerHTML = `The September lines fit this picture. Taking the two-hour spin-up (episode ${epOf("sep-spinup").n}) as the line of an evenly polarized sample, ` +
-    `the lines of the fast re-polarizations differ from the slow line at the same polarization by ${rng(up, "single")} of the peak, and those of the knock-downs and the reversal by ${rng(down, "single")}. ` +
-    `A sum of just two slow lines at different polarizations, typically one near ${pct(median(D.mix.map((r) => r.p1)), 0)} and one near ${pct(median(D.mix.map((r) => r.p2)), 0)}, brings that to ${rng(up, "mix")} and ${rng(down, "mix")}. ` +
-    `So a line taken during a fast change looks like that of a sample that is part highly polarized and part barely polarized. This is evidence for uneven polarization, not proof: nothing here measures where in the sample the polarization is.`;
+  const down = by(["reversal"]);
+  $("mixText").innerHTML = `Both reversals fit this picture. Taking the two-hour spin-up (episode ${epOf("sep-spinup").n}) as the line of an evenly polarized sample, ` +
+    `the September reversal's lines on the way down differ from the slow line at the same polarization by ${rng(down, "single")} of the peak. ` +
+    `A sum of just two slow lines at different polarizations, typically one near ${pct(median(down.map((r) => r.p1)), 0)} and one near ${pct(median(down.map((r) => r.p2)), 0)}, brings that to ${rng(down, "mix")}: ` +
+    `part of the sample still highly polarized, part already near zero. In July the parts are further apart, some still positive and some already negative, and the line has both signs at once. ` +
+    `This is evidence for uneven polarization, not proof: nothing here measures where in the sample the polarization is.`;
 
   $("nFit").textContent = String(m.n_fit);
   $("sPos").textContent = m.shift_pos.toFixed(1);
