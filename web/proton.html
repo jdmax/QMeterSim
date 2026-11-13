@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Proton Line and Polarization</title>
-<meta name="description" content="How the proton NMR line of a polarized target shifts and sharpens as the polarization grows, with measured lines from a 5 T target and the model used in the Q-meter simulator.">
+<meta name="description" content="How the proton NMR line of a polarized target shifts and sharpens as the polarization grows, positive and negative, with measured lines from a 5 T target and the model used in the Q-meter simulator.">
 <meta name="author" content="J. Maxwell">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,35 +18,50 @@
   <header>
     <p class="crumb"><a href="./">← Q-Meter Circuit Simulator</a></p>
     <h1>The proton line at high polarization</h1>
-    <p>A proton NMR line is not a fixed shape. As a target polarizes, the line moves up in frequency and its
-      high-frequency edge sharpens, while its area keeps tracking the polarization. This page follows one
-      5 T target through a spin-up from 24% to 74% and a slow decay from 79%, and shows the model of this
-      behavior that the simulator uses.</p>
+    <p>A proton NMR line is not a fixed shape. As a target polarizes, the line moves away from where it sits at
+      zero polarization and sharpens on that side, while its area keeps tracking the polarization. This page
+      follows a 5 T target through two runs, a rise to 79% in October 2022 and a reversal from +69% to −60% in
+      July 2022, and shows the model of this behavior that the simulator uses.</p>
   </header>
 
   <section class="panel" aria-labelledby="dataHead">
     <h2 id="dataHead">The data</h2>
-    <p>Proton event logs from a 5 T polarized target in October 2022: 512-point sweeps of ±400 kHz about
-      212.882 MHz, each event the average of 2000–4000 sweeps, baseline- and polynomial-subtracted as described
-      on the <a href="./">simulator page</a>. At 05:20 UTC on 9 October the polarization rose from near zero to
-      74% in eleven minutes, crept up to 79% by 10:10, and then decayed to 74% by 18:10. The example lines below
-      are the eight events of the fast rise, each a single event, and four averages of the later events, binned
-      by polarization.</p>
-    <div class="stage one">
+    <p>Proton event logs from a 5 T polarized target in 2022: 512-point sweeps of ±400 kHz about 212.882 MHz,
+      each event the average of 2000–4000 sweeps, baseline- and polynomial-subtracted as described on the
+      <a href="./">simulator page</a>.</p>
+    <ul class="plain">
+      <li><b>October, positive.</b> At 05:20 UTC on 9 October the polarization rose from near zero to 74% in
+        eleven minutes, crept up to 79% by 10:10, and then decayed to 74% by 18:10. Example lines: each of the
+        eight events of the fast rise, and four averages of the later events, binned by polarization.</li>
+      <li><b>July, a reversal.</b> From 01:50 UTC on 3 July the target held +69%. At 14:09 the microwave
+        frequency was moved from 140.12 to 140.46 GHz, to the other side of the electron line. The polarization
+        passed through zero 19 minutes later, reached −55% by about 21:00 and −60% by midday on 4 July, and
+        held there until 6 July. Example lines: the average of the +69% plateau, and averages of the build-up
+        binned by polarization, starting 1.4 hours after the zero crossing (the shaded band ends there). The
+        reversal itself is <a href="#revHead">below</a>.</li>
+    </ul>
+    <div class="stage" style="margin-top:14px">
       <div class="card flat">
-        <div class="card-head"><h2>Polarization during the run</h2></div>
-        <div class="canvas-box short"><canvas id="cvTime" aria-label="Polarization versus time, with the example lines marked"></canvas></div>
-        <div class="legend-line" id="timeLegend"></div>
-        <div class="readline" id="rdTime" aria-live="off"></div>
+        <div class="card-head"><h2>October</h2></div>
+        <div class="canvas-box mid"><canvas id="cvTimeO" aria-label="October run: polarization versus time, with the example lines marked"></canvas></div>
+        <div class="readline" id="rdTimeO" aria-live="off"></div>
+      </div>
+      <div class="card flat">
+        <div class="card-head"><h2>July</h2></div>
+        <div class="canvas-box mid"><canvas id="cvTimeJ" aria-label="July run: polarization versus time through the reversal, with the example lines marked"></canvas></div>
+        <div class="readline" id="rdTimeJ" aria-live="off"></div>
       </div>
     </div>
+    <div class="legend-line" id="timeLegend"></div>
   </section>
 
   <section class="panel" aria-labelledby="linesHead">
     <h2 id="linesHead">The line as the target polarizes</h2>
-    <p>Each line is the fit-subtracted signal, with its sign flipped so absorption is positive. Shown with equal
-      areas, the change in shape is plain: the line moves up in frequency and narrows from the high-frequency
-      side, while its low-frequency tail barely changes. Hover to pick out a line.</p>
+    <p>Each line is the fit-subtracted signal, with its sign flipped so absorption is positive; at negative
+      polarization the target emits, and the line as measured is negative. Each run's lines are drawn from that
+      run's <span data-tex="P = 0"></span> line center, which was 10.5 kHz lower in July. Shown with equal
+      areas, positive lines move up and narrow from the high-frequency side. Negative lines move down and
+      sharpen on the low-frequency side: close to a mirror image, but not exact. Hover to pick out a line.</p>
     <div class="controls inset" role="group" aria-label="Line display">
       <div class="ctl"><span class="eyebrow">Show</span>
         <div class="seg" id="normSeg">
@@ -56,25 +71,46 @@
     </div>
     <div class="stage one">
       <div class="card flat">
-        <div class="canvas-box"><canvas id="cvLines" aria-label="Measured proton lines at polarizations from 24 to 79 percent"></canvas></div>
-        <div class="legend-line"><span>polarization</span><span class="ramp" id="rampBar"></span><span id="rampLabels"></span></div>
+        <div class="canvas-box"><canvas id="cvLines" aria-label="Measured proton lines at polarizations from minus 60 to plus 79 percent"></canvas></div>
+        <div class="legend-line" id="rampLegend"></div>
         <div class="readline" id="rdLines" aria-live="off"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="revHead">
+    <h2 id="revHead">During the reversal</h2>
+    <p>For about 45 minutes after the microwaves moved, the line is not a function of the polarization. It has
+      both signs at once: its low-frequency side turns negative where the −60% line will peak, while the
+      high-frequency peak of the +69% line is still positive, and the logged polarization, the net area, says
+      little about the shape. Each of these lines is close to a sum of the two end lines, within about 15% of
+      its peak, as if parts of the sample reversed before others. A line of both signs cannot come from a single
+      spin temperature, so the model leaves these lines out. It also leaves out the rest of the 1.4 hours after
+      the zero crossing, while the line went on settling: its center of area moved up as the polarization built
+      up more negative, the wrong way for a line that depends on <span data-tex="P"></span> alone.</p>
+    <div class="stage one">
+      <div class="card flat">
+        <div class="canvas-box"><canvas id="cvRev" aria-label="Single events during the reversal, as measured, with the plus 69 and minus 60 percent lines for reference"></canvas></div>
+        <div class="legend-line" id="revLegend"></div>
+        <div class="readline" id="rdRev" aria-live="off"></div>
       </div>
     </div>
   </section>
 
   <section class="panel" aria-labelledby="changeHead">
     <h2 id="changeHead">What changes</h2>
-    <p>Measured from each line: where its center of area and its peak sit, how far it extends on each side of
-      the peak at half height, and how tall it is per unit polarization.</p>
+    <p>Measured from each settled line: where its center of area and its peak sit, how far it extends on each
+      side of the peak at half height, and how tall it is for its area. Points are blue for positive and orange
+      for negative polarization. The dashed curves are the model below; between −38% and +24% there are no
+      settled lines, and the model interpolates.</p>
     <div class="stage trio">
       <div class="card flat">
         <div class="card-head"><h2>Position</h2></div>
         <div class="canvas-box"><canvas id="cvShift" aria-label="Line centroid and peak offset versus polarization"></canvas></div>
         <div class="legend-line">
-          <span style="color:var(--copper)"><i class="sw dot-m"></i><span style="color:var(--muted)">center of area</span></span>
-          <span style="color:var(--copper)"><i class="sw dash"></i><span style="color:var(--muted)">straight-line fit</span></span>
-          <span style="color:var(--shell)"><i class="sw dot-m"></i><span style="color:var(--muted)">peak</span></span>
+          <span><i class="sw dot-m" style="color:var(--ink-2)"></i><span>center of area</span></span>
+          <span><i class="sw ring"></i><span>peak</span></span>
+          <span style="color:var(--muted)"><i class="sw dash"></i><span>model</span></span>
         </div>
         <div class="readline" id="rdShift" aria-live="off"></div>
       </div>
@@ -82,15 +118,19 @@
         <div class="card-head"><h2>Half width at half height</h2></div>
         <div class="canvas-box"><canvas id="cvWidth" aria-label="Half widths below and above the peak versus polarization"></canvas></div>
         <div class="legend-line">
-          <span style="color:var(--copper)"><i class="sw dot-m"></i><span style="color:var(--muted)">below the peak</span></span>
-          <span style="color:var(--shell)"><i class="sw dot-m"></i><span style="color:var(--muted)">above the peak</span></span>
+          <span><i class="sw dot-m" style="color:var(--ink-2)"></i><span>below the peak</span></span>
+          <span><i class="sw ring"></i><span>above the peak</span></span>
+          <span style="color:var(--muted)"><i class="sw dash"></i><span>model</span></span>
         </div>
         <div class="readline" id="rdWidth" aria-live="off"></div>
       </div>
       <div class="card flat">
-        <div class="card-head"><h2>Peak height per unit polarization</h2></div>
-        <div class="canvas-box"><canvas id="cvPeak" aria-label="Peak height divided by polarization, relative to the lowest-polarization line"></canvas></div>
-        <div class="legend-line"><span style="color:var(--muted)">relative to the 24% line</span></div>
+        <div class="card-head"><h2>Peak height for the area</h2></div>
+        <div class="canvas-box"><canvas id="cvPeak" aria-label="Peak height divided by area, relative to the model line at zero polarization"></canvas></div>
+        <div class="legend-line">
+          <span><i class="sw dot-m" style="color:var(--ink-2)"></i><span>relative to the model at P = 0</span></span>
+          <span style="color:var(--muted)"><i class="sw dash"></i><span>model</span></span>
+        </div>
         <div class="readline" id="rdPeak" aria-live="off"></div>
       </div>
     </div>
@@ -121,23 +161,32 @@
           dipolar fields of a proton's neighbours no longer average symmetrically: neighbours aligned with the
           field are more likely than not. This shifts and skews the line by amounts proportional to
           <span data-tex="P"></span> (Goldman; Abragam &amp; Goldman), and is why the line sharpens on one
-          side. Reversing <span data-tex="P"></span> reverses both.</p>
+          side. Negative polarization is a negative spin temperature, and reverses both.</p>
       </div>
     </div>
+    <p class="after-eq">This picture expects the negative line to be the mirror image of the positive one. The
+      July line is close to it, but at the same size of polarization it moves about half as far from the center
+      and stays broader. The October and July lines at +69% have the same shape, so the difference comes with
+      the sign of the polarization, not with the run. This page does not explain it; the model fits each sign
+      on its own.</p>
   </section>
 
   <section class="panel" aria-labelledby="modelHead">
     <h2 id="modelHead">The model in the simulator</h2>
-    <p>The simulator fits all twelve lines with one shift and one linear change of shape:</p>
-    <div class="eq" data-tex="g(x;P) = A_0(x - sP) + P\,A_1(x - sP), \qquad s = 24.8\ \text{kHz},\qquad \int A_1\,dx = 0"></div>
+    <p>The simulator fits all <span id="nFit">20</span> settled lines with a shift and a linear change of shape
+      for each sign of the polarization:</p>
+    <div class="eq" data-tex="g(x;P) = A_0(u) + P\,A_\pm(u), \qquad u = x - s_\pm P, \qquad \int A_\pm\,dx = 0"></div>
     <p class="after-eq">with <span data-tex="x"></span> the offset from the line center at
-      <span data-tex="P = 0"></span>. It reproduces every measured line within <span id="maxErr">4%</span> of its
-      peak. Nothing forces <span data-tex="A_0"></span> to be symmetric, but extrapolated to
-      <span data-tex="P = 0"></span> it nearly is, and for negative <span data-tex="P"></span> the sharp edge
-      moves to the low-frequency side, as the physics above expects. There is no data below 24% or for negative
-      polarization, so those are extrapolations. The dispersion that goes with each line is its exact
-      Kramers–Kronig partner, and the area is independent of <span data-tex="P"></span>, so a TE calibration
-      still holds.</p>
+      <span data-tex="P = 0"></span>; <span data-tex="A_+"></span> and <span data-tex="s_+"></span>
+      (<span id="sPos">24.6</span> kHz) for positive <span data-tex="P"></span>, and
+      <span data-tex="A_-"></span> and <span data-tex="s_-"></span> (<span id="sNeg">13.5</span> kHz) for
+      negative. <span data-tex="A_0"></span>, the line at <span data-tex="P = 0"></span>, is shared, so the
+      shape is continuous through zero. The model reproduces every settled line within
+      <span id="maxErr">4%</span> of its peak. Nothing forces <span data-tex="A_0"></span> to be symmetric, but
+      it nearly is. Between −38% and +24% the shape is interpolated. Beyond the measured range,
+      <span id="rangeText">−60% to 79%</span>, it is held, and only the shift and the size follow
+      <span data-tex="P"></span>. The dispersion that goes with each line is its exact Kramers–Kronig partner,
+      and the area is independent of <span data-tex="P"></span>, so a TE calibration still holds.</p>
     <div class="controls inset" role="group" aria-label="Model polarization">
       <div class="ctl wide"><label class="eyebrow" for="pSlider">Polarization</label>
         <div class="row">
@@ -150,18 +199,19 @@
         <div class="card-head"><h2>Model line</h2></div>
         <div class="canvas-box"><canvas id="cvModel" aria-label="Model proton line at the chosen polarization"></canvas></div>
         <div class="legend-line">
-          <span style="color:var(--copper)"><i class="sw"></i><span style="color:var(--muted)">model at this P</span></span>
+          <span id="modelLegend" style="color:var(--shell)"><i class="sw" style="background:currentColor"></i><span style="color:var(--muted)">model at this P</span></span>
           <span style="color:var(--muted)"><i class="sw dot"></i><span>model at P = 0</span></span>
-          <span id="measLegend" style="color:var(--shell)"><i class="sw dash"></i><span style="color:var(--muted)" id="measLegendText">measured</span></span>
+          <span id="measLegend" style="color:var(--ink-2)"><i class="sw dash"></i><span style="color:var(--muted)" id="measLegendText">measured</span></span>
         </div>
         <div class="readline" id="rdModel" aria-live="off"></div>
       </div>
       <div class="card flat">
-        <div class="card-head"><h2>The two parts</h2></div>
-        <div class="canvas-box"><canvas id="cvParts" aria-label="The fitted shape A0 and its change per unit polarization A1"></canvas></div>
+        <div class="card-head"><h2>The three parts</h2></div>
+        <div class="canvas-box"><canvas id="cvParts" aria-label="The fitted shape A0 and its changes per unit polarization, A plus and A minus"></canvas></div>
         <div class="legend-line">
-          <span style="color:var(--copper)"><i class="sw"></i><span style="color:var(--muted)">A₀, the line at P = 0</span></span>
-          <span style="color:var(--shell)"><i class="sw"></i><span style="color:var(--muted)">A₁, its change per unit P</span></span>
+          <span style="color:var(--ink-2)"><i class="sw" style="background:currentColor"></i><span style="color:var(--muted)">A₀, the line at P = 0</span></span>
+          <span style="color:var(--shell)"><i class="sw" style="background:currentColor"></i><span style="color:var(--muted)">A+, change per unit P &gt; 0</span></span>
+          <span style="color:var(--copper)"><i class="sw"></i><span style="color:var(--muted)">A−, change per unit P &lt; 0</span></span>
         </div>
         <div class="readline" id="rdParts" aria-live="off"></div>
       </div>
@@ -172,20 +222,26 @@
     <h2 id="measHead">What it means for measuring polarization</h2>
     <ul class="plain">
       <li><b>Integrate, don't read the peak.</b> Polarization is proportional to the area of the line, and that
-        is what a TE calibration transfers. The peak height is not: per unit polarization it grows by about a
-        fifth between 24% and 79% as the line narrows, so a peak-height estimate scaled from a low-polarization
-        line reads high.</li>
-      <li><b>Leave room for the shift.</b> The line moves by about 25 kHz between TE and full polarization, so
-        the integration range and the polynomial-fit wings need margin on the high-frequency side.</li>
+        is what a TE calibration transfers. The peak height is not: for the same area the peak is about a fifth
+        taller at 79% than at 24% as the line narrows, and a negative line is lower than a positive one of the
+        same size. A peak-height estimate scaled from a low-polarization line reads high at high positive
+        polarization.</li>
+      <li><b>Leave room for the shift.</b> Between TE and 79% the center of the line moves up by about 19 kHz
+        and its peak by about 31 kHz; at −60% they move down by about 8 and 16 kHz. The integration range and
+        the polynomial-fit wings need margin on the side the line moves to.</li>
       <li><b>Asymmetry is not a phase error.</b> A phase error mixes in the dispersion, which is antisymmetric:
-        it pushes the line up on one side and below zero on the other. The polarization asymmetry keeps the line
-        positive everywhere. Lines that sharpen on one side as the target polarizes are expected.</li>
+        it pushes the line up on one side and below zero on the other. The polarization asymmetry keeps a
+        settled line one sign everywhere. Lines that sharpen on one side as the target polarizes are
+        expected.</li>
+      <li><b>Don't trust the shape during a reversal.</b> While the polarization reverses, the line can have
+        both signs at once. Its area is still the polarization, but a lineshape fit or a peak height is not.</li>
       <li><b>Expect more distortion from the Q-meter.</b> A narrower line is taller for the same area, so at
         high polarization the Q-meter's nonlinear response distorts it a little more than a fixed-shape model
         would suggest.</li>
     </ul>
-    <p class="after-eq">Try it in the <a href="./?species=p&amp;pol=0.9">simulator</a>: set protons, change the
-      polarization, and watch the fit-subtracted line move and sharpen.</p>
+    <p class="after-eq">Try it in the simulator at <a href="./?species=p&amp;pol=0.79">+79%</a> or
+      <a href="./?species=p&amp;pol=-0.6">−60%</a>: change the polarization, and watch the fit-subtracted line
+      move and sharpen.</p>
   </section>
 
   <section class="notes">

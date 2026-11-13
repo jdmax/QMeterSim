@@ -7,9 +7,11 @@ change cable lengths, tuning, phase, species, field and the circuit constants.
 
 - **Tune** buttons on the diode and phase plots set the capacitance (and, for the phase signal, the phase) that center
   the curve on the Larmor frequency for the current cable lengths.
-- **Proton signal:** fitted to measured 5 T proton lines at polarizations from 24% to 79%. As the polarization
-  grows the line shifts up (24.8 kHz per unit P) and sharpens on its high-frequency side, from nearly symmetric
-  and about 49 kHz wide near P = 0 to 35 kHz wide with a long low-frequency tail at 79%. Its dispersion is
+- **Proton signal:** fitted to measured 5 T proton lines at polarizations from −60% to −38% and from 24% to 79%.
+  Near P = 0 the line is nearly symmetric and about 52 kHz wide. For positive P it shifts up (24.6 kHz per unit
+  P) and sharpens on its high-frequency side, to 37 kHz wide with a long low-frequency tail at 79%. For negative
+  P it shifts down by only 13.5 kHz per unit P and sharpens on its low-frequency side, to 46 kHz wide at −60%.
+  Beyond the measured range the shape is held, and only the shift and size follow P. Its dispersion is
   computed exactly from it, and its size follows Seely's susceptibility with the notebook's Hill & Hill
   normalization. This replaces the notebook's analytic lineshape, whose complex power below resonance made the
   line lopsided the wrong way and its dispersion unphysical.

@@ -155,7 +155,7 @@ def test_proton_lineshape():
     w = 2 * np.pi * f * 1e6
     near = abs(x) < 400
     shape = {}
-    for pol in (0.005, 0.3, 0.79, -0.4):
+    for pol in (0.005, 0.3, 0.79, -0.4, -0.6):
         p = qmeter._params(dict(species='p', pol=pol))
         # dispersion is the exact Kramers-Kronig partner: chi' = -H[chi'']
         g = pl.absorption(x, pol)
@@ -170,16 +170,23 @@ def test_proton_lineshape():
         i0 = np.argmax(ab)
         half = np.nonzero(ab > 0.5)[0]
         shape[pol] = (1e3 * (f[i0] - f[half[0]]), 1e3 * (f[half[-1]] - f[i0]), np.sum(ab * x) / np.sum(ab))
-    # measured behavior: centroid shifts ~25 kHz per unit P; at high P the line is ~35 kHz wide with a sharp
-    # high-frequency edge; near P = 0 it is nearly symmetric and broader; negative P mirrors the asymmetry
+    # measured behavior: the centroid moves up ~25 kHz per unit P for P > 0 and down ~13 kHz for P < 0; at
+    # +79% the line is ~37 kHz wide with a sharp high-frequency edge; near P = 0 it is nearly symmetric and
+    # broader; at -60% the sharp edge is on the low-frequency side and the line is broader than at +60%
     for pol, (lo, hi, c) in shape.items():
-        assert abs(c - pl.SHIFT_KHZ_PER_POL * pol) < 1.5, (pol, c)
+        assert abs(c - pl.shift_khz(pol)) < 1.5, (pol, c)
+    assert 20 < pl.SHIFT_POS_KHZ < 30 and 8 < pl.SHIFT_NEG_KHZ < 18
     lo, hi, _ = shape[0.79]
     assert 30 < lo + hi < 40 and lo > 1.4 * hi
     lo, hi, _ = shape[0.005]
     assert 42 < lo + hi < 56 and 0.8 < lo / hi < 1.25
     lo, hi, _ = shape[-0.4]
     assert hi > 1.2 * lo
+    lo, hi, _ = shape[-0.6]
+    assert hi > 1.4 * lo and lo + hi > 44
+    # beyond the measured range only the shift and the size follow P
+    for a, b in ((-0.9, pl.POL_MIN), (0.97, pl.POL_MAX)):
+        assert np.allclose(pl.absorption(x + pl.shift_khz(a), a), pl.absorption(x + pl.shift_khz(b), b), atol=1e-9)
     print("test_proton_lineshape: OK")
 
 

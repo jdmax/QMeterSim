@@ -1,6 +1,6 @@
 "use strict";
 // The proton line at high polarization: measured lines (proton_data.json, made by tools/make_proton_data.py)
-// and the simulator's model g(x; P) = A0(x - sP) + P A1(x - sP).
+// and the simulator's model g(x; P) = A0(u) + P A±(u), u = x - s± P.
 
 const $ = (id) => document.getElementById(id);
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -9,19 +9,32 @@ const isDark = () => {
   return t === "dark" || (t !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
 };
 
-// one-hue sequential ramp for polarization: light -> dark on a light surface, dark -> light on a dark one
-const RAMP_LIGHT = ["#86b6ef", "#6da7ec", "#5598e7", "#3987e5", "#2a78d6", "#256abf", "#1c5cab", "#184f95", "#104281", "#0d366b"];
-const RAMP_DARK = ["#184f95", "#1c5cab", "#256abf", "#2a78d6", "#3987e5", "#5598e7", "#6da7ec", "#86b6ef", "#9ec5f4", "#cde2fb"];
+// polarization colors: blue for P > 0, orange for P < 0, each light -> dark with |P| on a light surface
+// (dark -> light on a dark one)
+const RAMPS = {
+  pos: {
+    light: ["#86b6ef", "#6da7ec", "#5598e7", "#3987e5", "#2a78d6", "#256abf", "#1c5cab", "#184f95", "#104281", "#0d366b"],
+    dark: ["#184f95", "#1c5cab", "#256abf", "#2a78d6", "#3987e5", "#5598e7", "#6da7ec", "#86b6ef", "#9ec5f4", "#cde2fb"],
+  },
+  neg: {
+    light: ["#f0b48c", "#eca274", "#e6905c", "#de7e45", "#d16d33", "#c25f27", "#b4531b", "#9c4616", "#843a12", "#6c2f0e"],
+    dark: ["#8a3c10", "#a2481a", "#b8582a", "#cc6a38", "#dc7a45", "#e5834a", "#eb9566", "#f0a882", "#f4bb9e", "#f8d3c0"],
+  },
+};
+const P_SCALE = [0.1, 0.8];          // |P| mapped onto the ramps
 function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
-function rampColor(t) {
-  const ramp = isDark() ? RAMP_DARK : RAMP_LIGHT;
-  const u = Math.max(0, Math.min(1, t)) * (ramp.length - 1);
-  const i = Math.min(ramp.length - 2, Math.floor(u)), f = u - i;
-  const a = hexRgb(ramp[i]), b = hexRgb(ramp[i + 1]);
+const ramp = (p) => RAMPS[p < 0 ? "neg" : "pos"][isDark() ? "dark" : "light"];
+function colorOf(p) {
+  const r = ramp(p);
+  const t = Math.max(0, Math.min(1, (Math.abs(p) - P_SCALE[0]) / (P_SCALE[1] - P_SCALE[0])));
+  const u = t * (r.length - 1), i = Math.min(r.length - 2, Math.floor(u)), f = u - i;
+  const a = hexRgb(r[i]), b = hexRgb(r[i + 1]);
   return `rgb(${a.map((v, k) => Math.round(v + f * (b[k] - v))).join(",")})`;
 }
+const signColor = (p) => colorOf(p < 0 ? -0.6 : 0.6);
 
-const pct = (p, d = 1) => `${(100 * p).toFixed(d)}%`;
+const pct = (p, d = 1) => `${p < 0 ? "−" : ""}${Math.abs(100 * p).toFixed(d)}%`;
+const spct = (p, d = 0) => `${p > 0 ? "+" : ""}${pct(p, d)}`;
 const sgn = (v, d = 1) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(d)}`;
 
 // ---------- plotting ----------
@@ -37,10 +50,9 @@ function setupCanvas(cv) {
   return { ctx, W: r.width, H: r.height };
 }
 const hover = {};       // canvas id -> {px, py} in CSS pixels
-const geom = {};        // canvas id -> mapping for hover
 
-// spec: {series:[{x,y,color,width,dash,alpha}], points:[{x,y,color,r}], xLabel, yLabel, xFmt, yFmt,
-//        xmin,xmax,ymin,ymax, zero, onHover(xv, yv) -> html}
+// spec: {series:[{x,y,color,width,dash,alpha}], points:[{x,y,color,r,hollow}], bands:[{x0,x1}], xLabel, yLabel,
+//        xFmt, yFmt, xStep, xmin,xmax,ymin,ymax, zero, readEl, idle, onHover(xv, yv) -> html}
 function plot(id, spec) {
   const cv = $(id);
   const { ctx, W, H } = setupCanvas(cv);
@@ -69,8 +81,13 @@ function plot(id, spec) {
   }
   const X = (v) => m.l + ((v - xmin) / (xmax - xmin)) * pw;
   const Y = (v) => m.t + (1 - (v - ymin) / (ymax - ymin)) * ph;
-  geom[id] = { m, pw, ph, xmin, xmax, ymin, ymax };
 
+  for (const b of spec.bands || []) {
+    const x0 = Math.max(m.l, X(b.x0)), x1 = Math.min(m.l + pw, X(b.x1));
+    if (x1 <= x0) continue;
+    ctx.fillStyle = css("--muted"); ctx.globalAlpha = 0.16;
+    ctx.fillRect(x0, m.t, x1 - x0, ph); ctx.globalAlpha = 1;
+  }
   ctx.font = `11px ${css("--f-mono")}`;
   ctx.lineWidth = 1; ctx.strokeStyle = css("--line"); ctx.fillStyle = css("--muted");
   const ys = niceStep(ymax - ymin, Math.max(3, Math.floor(ph / 42)));
@@ -117,8 +134,14 @@ function plot(id, spec) {
   }
   ctx.globalAlpha = 1; ctx.setLineDash([]);
   for (const p of spec.points || []) {
-    ctx.fillStyle = p.color; ctx.strokeStyle = css("--canvas-bg"); ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), p.r || 4.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), p.r || 4.5, 0, 2 * Math.PI);
+    if (p.hollow) {
+      ctx.fillStyle = css("--canvas-bg"); ctx.fill();
+      ctx.strokeStyle = p.color; ctx.lineWidth = 2; ctx.stroke();
+    } else {
+      ctx.fillStyle = p.color; ctx.fill();
+      ctx.strokeStyle = css("--canvas-bg"); ctx.lineWidth = 2; ctx.stroke();
+    }
   }
   // crosshair and readout
   const hv = hover[id];
@@ -129,7 +152,7 @@ function plot(id, spec) {
       const xx = Math.round(X(xv)) + 0.5;
       ctx.strokeStyle = css("--muted"); ctx.setLineDash([2, 3]);
       ctx.beginPath(); ctx.moveTo(xx, m.t); ctx.lineTo(xx, m.t + ph); ctx.stroke(); ctx.setLineDash([]);
-      html = spec.onHover(xv, yv, ctx, X, Y) || "";
+      html = spec.onHover(xv, yv) || "";
     }
   }
   ctx.restore();
@@ -152,7 +175,7 @@ function nearestIndex(xs, x) {
 
 // ---------- line measurements ----------
 const REGION = [-290, 150];   // kHz from the P = 0 center: the line; outside it the sweep is noise
-function measure(x, y) {
+function measure(x, y) {      // y with absorption positive
   const h = x[1] - x[0];
   let area = 0, mom = 0, i0 = -1;
   for (let i = 0; i < x.length; i++) {
@@ -176,137 +199,207 @@ function measure(x, y) {
 
 // ---------- state ----------
 let D = null;            // proton_data.json
-let lines = [];          // measured lines, sorted by polarization
+let runs = {};           // id -> run
+let lines = [];          // settled lines (the model's fit), sorted by polarization
+let revLines = [];       // single events from the reversal, in time order
 let model = null;
 let norm = "area";
 let modelP = 0.5;
-let pRange = [0, 1];
 let hlLine = -1;
+let curves = null;       // model measurements against P
 
 function setupData(d) {
   D = d;
-  const x = d.x_khz;
-  lines = d.lines.map((ln) => ({ ...ln, ...measure(x, ln.y) })).sort((a, b) => a.pol - b.pol);
-  for (const ln of lines) ln.yn = ln.y.map((v) => 1000 * v / ln.area);       // area-normalized, per MHz
-  pRange = [lines[0].pol, lines[lines.length - 1].pol];
+  runs = Object.fromEntries(d.runs.map((r) => [r.id, r]));
+  const all = d.lines.map((ln) => {
+    const x = runs[ln.run].x_khz, s = Math.sign(ln.pol) || 1;
+    const ya = ln.y.map((v) => s * v);
+    const mm = measure(x, ya);
+    return { ...ln, x, ...mm, yn: ya.map((v) => 1000 * v / mm.area) };   // area-normalized, per MHz
+  });
+  lines = all.filter((l) => l.fit).sort((a, b) => a.pol - b.pol);
+  revLines = all.filter((l) => !l.fit).sort((a, b) => a.hours - b.hours);
   const md = d.model;
   const knots = md.A0.map((_, j) => (j - md.half) * md.step_khz);
   const area = md.step_khz * md.A0.reduce((s, v) => s + v, 0);
   model = { ...md, knots, area };
-  // straight-line fit of the centroid against P
-  const n = lines.length, sx = lines.reduce((s, l) => s + l.pol, 0), sy = lines.reduce((s, l) => s + l.centroid, 0);
-  const sxx = lines.reduce((s, l) => s + l.pol * l.pol, 0), sxy = lines.reduce((s, l) => s + l.pol * l.centroid, 0);
-  const slope = (n * sxy - sx * sy) / (n * sxx - sx * sx);
-  model.fit = { slope, icpt: (sy - slope * sx) / n };
+  const neg = lines.filter((l) => l.pol < 0), pos = lines.filter((l) => l.pol > 0);
+  model.gap = [neg[neg.length - 1].pol, pos[0].pol];
+  // model measurements across the polarization range, for the "what changes" curves
+  const xs = []; for (let v = -260; v <= 200; v += 0.5) xs.push(v);
+  curves = [];
+  for (let p = -0.66; p <= 0.83 + 1e-9; p += 0.01) {
+    if (Math.abs(p) < 1e-9) p = 0;
+    curves.push({ pol: p, ...measure(xs, modelLine(p, xs)) });
+  }
+  for (const k of ["centroid", "xp", "lo", "hi", "yp"]) {
+    const v = curves.map((c) => c[k]);
+    curves.forEach((c, i) => {
+      const a = Math.max(0, i - 3), b = Math.min(v.length, i + 4);
+      c[k] = v.slice(a, b).reduce((t, w) => t + w, 0) / (b - a);
+    });
+  }
+  const m0 = measure(xs, modelLine(0, xs));
+  model.peak0 = m0.yp / m0.area * 1000;
 }
-const colorOf = (p) => rampColor((p - pRange[0]) / (pRange[1] - pRange[0]));
 
-function modelLine(P, xs) {
-  const s = model.shift_khz_per_pol * P;
+const shiftOf = (P) => (P >= 0 ? model.shift_pos : model.shift_neg) * P;
+function modelLine(P, xs) {           // area 1, per MHz
+  const s = shiftOf(P), pc = Math.max(model.pol_min, Math.min(model.pol_max, P));
+  const part = pc >= 0 ? model.APOS : model.ANEG;
   return xs.map((x) => {
     const u = x - s;
     if (u <= model.knots[0] || u >= model.knots[model.knots.length - 1]) return 0;
-    return 1000 * (interp(model.knots, model.A0, u) + P * interp(model.knots, model.A1, u)) / model.area;
+    return 1000 * (interp(model.knots, model.A0, u) + pc * interp(model.knots, part, u)) / model.area;
   });
 }
 
 // ---------- charts ----------
-const START = () => new Date(D.timeline.start.replace(" UTC", "Z").replace(" ", "T"));
-const H0 = () => { const t = START(); return t.getUTCHours() + t.getUTCMinutes() / 60 + t.getUTCSeconds() / 3600; };
-function clock(hourOfDay) {           // hours since 00:00 UTC -> "HH:MM"
-  const m = Math.round(hourOfDay * 60);
+const startOf = (run) => new Date(run.start.replace(" UTC", "Z").replace(" ", "T"));
+const hourOfDay = (run) => { const t = startOf(run); return t.getUTCHours() + t.getUTCMinutes() / 60 + t.getUTCSeconds() / 3600; };
+function clock(h) {                    // hours since 00:00 UTC -> "HH:MM"
+  const m = Math.round(h * 60);
   return `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 }
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function dayClock(run, h) {            // hours since 00:00 UTC of the start day -> "4 Jul 12:00"
+  const t = startOf(run), d = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), t.getUTCDate()) + Math.floor(h / 24 + 1e-9) * 864e5);
+  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${clock(h)}`;
+}
+const whenOf = (ln) => {
+  const run = runs[ln.run];
+  return run.id === "jul" ? dayClock(run, ln.hours + hourOfDay(run)) : clock(ln.hours + hourOfDay(run));
+};
+const kindText = { rise: "October rise", decay: "October decay", plateau: "July plateau", "build-up": "July build-up", reversal: "July reversal" };
+const describe = (ln) => `${kindText[ln.kind]}, ${ln.n > 1 ? `average of ${ln.n} events around ${whenOf(ln)}` : `event at ${whenOf(ln)}`}`;
 
-function drawTime() {
-  const tl = D.timeline, h0 = H0();
+function drawTimeRun(id, run, readEl, opt) {
+  const tl = run.timeline, h0 = hourOfDay(run);
   const hx = tl.hours.map((h) => h + h0);
-  const pts = lines.map((ln) => {
-    const k = D.lines.findIndex((l) => l.time === ln.time && l.pol === ln.pol);
-    return { x: tl.line_hours[k] + h0, y: 100 * ln.pol, color: colorOf(ln.pol), r: 5 };
-  });
-  plot("cvTime", {
+  const pts = lines.filter((l) => l.run === run.id).map((ln) => ({ x: ln.hours + h0, y: 100 * ln.pol, color: colorOf(ln.pol), r: 5 }));
+  const bands = run.reversal_hours != null ? [{ x0: run.reversal_hours + h0, x1: run.settled_hours + h0 }] : [];
+  plot(id, {
     series: [{ x: hx, y: tl.pol.map((p) => 100 * p), color: css("--ink-2"), width: 1.6 }],
-    points: pts, zero: true, ymax: 85, xLabel: "time on 9 October 2022 (UTC)", yLabel: "polarization (%)",
-    xFmt: clock, readEl: "rdTime",
+    points: pts, bands, zero: true, ymin: opt.ymin, ymax: 85, xLabel: opt.xLabel, yLabel: "polarization (%)",
+    xFmt: opt.tick || opt.fmt, xStep: opt.xStep, readEl,
     onHover: (xv) => {
       const i = nearestIndex(hx, xv);
-      return `${clock(hx[i])} UTC · P = ${pct(tl.pol[i])}`;
+      return `${opt.fmt(hx[i])} UTC · P = ${pct(tl.pol[i])}`;
     },
+  });
+}
+function drawTime() {
+  const o = runs.oct, j = runs.jul;
+  drawTimeRun("cvTimeO", o, "rdTimeO", { fmt: clock, ymin: 0, xLabel: "time on 9 October 2022 (UTC)" });
+  const w = $("cvTimeJ").getBoundingClientRect().width;
+  drawTimeRun("cvTimeJ", j, "rdTimeJ", {
+    fmt: (h) => dayClock(j, h), tick: (h) => (Math.abs(h % 24) < 1e-6 ? dayClock(j, h).slice(0, -6) : clock(h)),
+    xStep: w > 420 ? 12 : 24, ymin: -70, xLabel: "3 to 6 July 2022 (UTC)",
   });
   $("timeLegend").innerHTML =
     `<span style="color:var(--ink-2)"><i class="sw" style="background:currentColor;height:2px"></i><span style="color:var(--muted)">each event</span></span>` +
-    `<span><i class="sw dot-m" style="color:${colorOf(pRange[1])}"></i><span>example lines, colored by polarization as below</span></span>`;
+    `<span><i class="sw dot-m" style="color:${colorOf(0.6)}"></i><i class="sw dot-m" style="color:${colorOf(-0.6)}"></i><span>example lines, colored by polarization as below</span></span>` +
+    `<span><i class="sw band"></i><span>reversal and settling, left out of the model</span></span>`;
+}
+
+function rampLegend(el) {
+  const bar = (key) => `<span class="ramp" style="background:linear-gradient(90deg, ${RAMPS[key][isDark() ? "dark" : "light"].join(",")})"></span>`;
+  $(el).innerHTML =
+    `<span class="group"><span>P &gt; 0</span>${bar("pos")}<span class="ramp-label">+${100 * P_SCALE[0]}% → +${100 * P_SCALE[1]}%</span></span>` +
+    `<span class="group"><span>P &lt; 0</span>${bar("neg")}<span class="ramp-label">−${100 * P_SCALE[0]}% → −${100 * P_SCALE[1]}%</span></span>`;
 }
 
 function drawLines() {
-  const x = D.x_khz;
   const key = norm === "area" ? "yn" : "y";
   const scale = norm === "area" ? 1 : 1000;          // as measured: mV
   const series = lines.map((ln, i) => ({
-    x, y: ln[key].map((v) => v * scale), color: colorOf(ln.pol),
-    width: i === hlLine ? 3 : 1.8, alpha: hlLine < 0 || i === hlLine ? 1 : 0.35,
+    x: ln.x, y: ln[key].map((v) => v * scale), color: colorOf(ln.pol),
+    width: i === hlLine ? 3 : 1.8, alpha: hlLine < 0 || i === hlLine ? 1 : 0.3,
   }));
   if (hlLine >= 0) series.push(series.splice(hlLine, 1)[0]);       // highlighted line on top
   plot("cvLines", {
     series, xmin: -220, xmax: 160, zero: true,
-    xLabel: `offset from the P = 0 line center, ${D.center_mhz.toFixed(3)} MHz (kHz)`,
+    xLabel: "offset from the run's P = 0 line center (kHz)",
     yLabel: norm === "area" ? "signal, area = 1 (per MHz)" : "signal (mV)", readEl: "rdLines",
     onHover: (xv, yv) => {
       let best = -1, bd = Infinity;
       lines.forEach((ln, i) => {
-        const d = Math.abs(interp(x, ln[key], xv) * scale - yv);
+        const d = Math.abs(interp(ln.x, ln[key], xv) * scale - yv);
         if (d < bd) { bd = d; best = i; }
       });
       if (best !== hlLine) { hlLine = best; requestAnimationFrame(drawLines); }
       const ln = lines[best];
-      const what = ln.n > 1 ? `average of ${ln.n} events around ${ln.time.slice(11)}` : `event at ${ln.time.slice(11)}`;
-      const v = interp(x, ln[key], xv) * scale;
-      return `P = ${pct(ln.pol)} · ${what} · ${sgn(xv)} kHz: ${v.toFixed(norm === "area" ? 2 : 3)}${norm === "area" ? "" : " mV"}`;
+      const v = interp(ln.x, ln[key], xv) * scale;
+      return `P = ${pct(ln.pol)} · ${describe(ln)} · ${sgn(xv)} kHz: ${v.toFixed(norm === "area" ? 2 : 3)}${norm === "area" ? "" : " mV"}`;
     },
   });
-  $("rampBar").style.background = `linear-gradient(90deg, ${(isDark() ? RAMP_DARK : RAMP_LIGHT).join(",")})`;
-  $("rampLabels").textContent = `${pct(pRange[0], 0)} → ${pct(pRange[1], 0)}`;
+  rampLegend("rampLegend");
+}
+
+function drawRev() {
+  const plat = lines.find((l) => l.kind === "plateau");
+  const end = lines.filter((l) => l.kind === "build-up").reduce((a, b) => (b.n > a.n ? b : a));
+  const refs = [plat, end];
+  const series = refs.map((ln) => ({ x: ln.x, y: ln.y.map((v) => 1000 * v), color: colorOf(ln.pol), width: 1.6, dash: [6, 4] }));
+  for (const ln of revLines) series.push({ x: ln.x, y: ln.y.map((v) => 1000 * v), color: colorOf(ln.pol), width: 2 });
+  const t0 = runs.jul.reversal_hours;
+  plot("cvRev", {
+    series, xmin: -220, xmax: 160, zero: true, xLabel: "offset from the July P = 0 line center (kHz)",
+    yLabel: "signal (mV)", readEl: "rdRev",
+    onHover: (xv, yv) => {
+      let best = null, bd = Infinity;
+      for (const ln of [...revLines, ...refs]) {
+        const d = Math.abs(1000 * interp(ln.x, ln.y, xv) - yv);
+        if (d < bd) { bd = d; best = ln; }
+      }
+      const when = best.kind === "reversal" ? `${Math.round(60 * (best.hours - t0))} min after the switch` : describe(best);
+      return `P = ${pct(best.pol)} · ${when} · ${sgn(xv)} kHz: ${(1000 * interp(best.x, best.y, xv)).toFixed(3)} mV`;
+    },
+  });
+  $("revLegend").innerHTML =
+    revLines.map((ln) => `<span><i class="sw" style="background:${colorOf(ln.pol)}"></i><span>${spct(ln.pol)}, ${Math.round(60 * (ln.hours - t0))} min</span></span>`).join("") +
+    refs.map((ln) => `<span style="color:${colorOf(ln.pol)}"><i class="sw dash"></i><span style="color:var(--muted)">${spct(ln.pol)} ${ln.kind === "plateau" ? "plateau" : "settled"}</span></span>`).join("");
 }
 
 function scatterSpec(id, readEl, sets, yLabel, fmtRead, extra = {}) {
   const series = [], points = [];
   for (const s of sets) {
-    if (s.line) series.push(s.line);
-    for (const ln of lines) points.push({ x: 100 * ln.pol, y: s.val(ln), color: s.color, r: 4.5 });
+    series.push({ x: curves.map((c) => 100 * c.pol), y: curves.map(s.val), color: css("--muted"), width: 1.4, dash: [5, 4] });
+    for (const ln of lines) points.push({ x: 100 * ln.pol, y: s.val(ln), color: colorOf(ln.pol), r: 4.5, hollow: s.hollow });
   }
   plot(id, {
-    series, points, xmin: 20, xmax: 82, xLabel: "polarization (%)", yLabel, readEl, ...extra,
-    onHover: (xv) => {
-      const ln = lines[nearestIndex(lines.map((l) => 100 * l.pol), xv)];
-      return fmtRead(ln);
-    },
+    series, points, xmin: -66, xmax: 83, xLabel: "polarization (%)", yLabel, readEl, ...extra,
+    onHover: (xv) => fmtRead(lines[nearestIndex(lines.map((l) => 100 * l.pol), xv)]),
   });
 }
 
 function drawChanges() {
-  const fit = model.fit;
-  const fx = [20, 82];
   scatterSpec("cvShift", "rdShift", [
-    { val: (l) => l.centroid, color: css("--copper"),
-      line: { x: fx, y: fx.map((p) => fit.icpt + fit.slope * p / 100), color: css("--copper"), width: 1.6, dash: [6, 4] } },
-    { val: (l) => l.xp, color: css("--shell") },
+    { val: (l) => l.centroid },
+    { val: (l) => l.xp, hollow: true },
   ], "offset (kHz)", (l) => `P = ${pct(l.pol)}: center ${sgn(l.centroid)} kHz, peak ${sgn(l.xp)} kHz`, { zero: true });
   scatterSpec("cvWidth", "rdWidth", [
-    { val: (l) => l.lo, color: css("--copper") },
-    { val: (l) => l.hi, color: css("--shell") },
-  ], "half width (kHz)", (l) => `P = ${pct(l.pol)}: ${l.lo.toFixed(1)} kHz below, ${l.hi.toFixed(1)} kHz above the peak`, { zero: true });
-  const ref = lines[0].yp / lines[0].pol;
-  scatterSpec("cvPeak", "rdPeak", [
-    { val: (l) => l.yp / l.pol / ref, color: css("--copper") },
-  ], "peak ÷ P, relative", (l) => `P = ${pct(l.pol)}: peak per unit P ×${(l.yp / l.pol / ref).toFixed(3)}`,
-  { ymin: 0.95, ymax: 1.3, yFmt: (v) => v.toFixed(2) });
+    { val: (l) => l.lo },
+    { val: (l) => l.hi, hollow: true },
+  ], "half width (kHz)", (l) => `P = ${pct(l.pol)}: ${l.lo.toFixed(1)} kHz below, ${l.hi.toFixed(1)} kHz above the peak`, { ymin: 0 });
+  const rel = (l) => l.yp / l.area * 1000 / model.peak0;
+  scatterSpec("cvPeak", "rdPeak", [{ val: rel }],
+    "peak ÷ area, relative", (l) => `P = ${pct(l.pol)}: peak for the area ×${rel(l).toFixed(3)}`,
+    { ymin: 0.9, ymax: 1.3, yFmt: (v) => v.toFixed(2) });
 
-  const lo = lines[0], hi = lines[lines.length - 1];
+  const pos = lines.filter((l) => l.pol > 0), neg = lines.filter((l) => l.pol < 0);
+  const hiP = pos[pos.length - 1], loP = pos[0], hiN = neg[0];
+  const mirror = pos.reduce((a, b) => (Math.abs(b.pol + hiN.pol) < Math.abs(a.pol + hiN.pol) ? b : a));
+  // the two runs' +69% lines, compared on the October line's grid
+  const plat = lines.find((l) => l.kind === "plateau");
+  const twin = pos.filter((l) => l.run === "oct").reduce((a, b) => (Math.abs(b.pol - plat.pol) < Math.abs(a.pol - plat.pol) ? b : a));
+  let dmax = 0, pk = 0;
+  twin.x.forEach((x, i) => { if (x > -200 && x < 150) { dmax = Math.max(dmax, Math.abs(interp(plat.x, plat.yn, x) - twin.yn[i])); pk = Math.max(pk, twin.yn[i]); } });
   $("findings").innerHTML = [
-    `The center of area moves up <b>${fit.slope.toFixed(1)} kHz per unit polarization</b>, from ${sgn(lo.centroid)} kHz at ${pct(lo.pol, 0)} to ${sgn(hi.centroid)} kHz at ${pct(hi.pol, 0)}. The peak moves further, from ${sgn(lo.xp)} to ${sgn(hi.xp)} kHz, because the line also changes shape.`,
-    `Above the peak the line narrows from ${lo.hi.toFixed(1)} to ${hi.hi.toFixed(1)} kHz at half height; below it, from ${lo.lo.toFixed(1)} to ${hi.lo.toFixed(1)} kHz. The sharp edge is on the high-frequency side.`,
-    `For the same polarization the line gets taller: peak height per unit P is ${((hi.yp / hi.pol / ref - 1) * 100).toFixed(0)}% higher at ${pct(hi.pol, 0)} than at ${pct(lo.pol, 0)}. The area per unit P is constant here by construction, since the logged polarization is the calibrated area.`,
+    `For positive polarization the center of area moves up <b>${model.shift_pos.toFixed(1)} kHz per unit P</b>, to ${sgn(hiP.centroid)} kHz at ${pct(hiP.pol, 0)}. For negative polarization it moves down only <b>${model.shift_neg.toFixed(1)} kHz per unit P</b>, to ${sgn(hiN.centroid)} kHz at ${pct(hiN.pol, 0)}. The peak moves further, to ${sgn(hiP.xp)} and ${sgn(hiN.xp)} kHz, because the shape changes too.`,
+    `At ${pct(hiP.pol, 0)} the line is ${(hiP.lo + hiP.hi).toFixed(1)} kHz wide at half height, with its sharp edge above the peak (${hiP.hi.toFixed(1)} kHz above, ${hiP.lo.toFixed(1)} below; at ${pct(loP.pol, 0)}, ${loP.hi.toFixed(1)} and ${loP.lo.toFixed(1)}). At ${pct(hiN.pol, 0)} the sharp edge is below the peak: ${hiN.lo.toFixed(1)} kHz below, ${hiN.hi.toFixed(1)} above.`,
+    `It is not an exact mirror image. At ${pct(hiN.pol, 0)} the line is ${(hiN.lo + hiN.hi).toFixed(1)} kHz wide and its peak for the area is ×${rel(hiN).toFixed(2)} that of the model at P = 0; at ${pct(mirror.pol, 0)} the line is ${(mirror.lo + mirror.hi).toFixed(1)} kHz wide and ×${rel(mirror).toFixed(2)}.`,
+    `The +${Math.round(100 * plat.pol)}% lines of the two runs, July's plateau and October's event at ${pct(twin.pol, 1)}, agree within ${(100 * dmax / pk).toFixed(0)}% of the peak, so the difference between the signs is not a difference between the runs. The area per unit P is constant within each run by construction, since the logged polarization is the calibrated area.`,
   ].map((s) => `<li>${s}</li>`).join("");
 }
 
@@ -315,39 +408,50 @@ function drawModel() {
   for (let v = -250; v <= 200; v += 0.5) xs.push(v);
   const gP = modelLine(modelP, xs), g0 = modelLine(0, xs);
   const series = [{ x: xs, y: g0, color: css("--muted"), width: 1.6, dash: [2, 3] }];
-  // nearest measured line, if one is close to this polarization
+  // nearest settled line, if one is close to this polarization
   let near = null;
   for (const ln of lines) if (Math.abs(ln.pol - modelP) <= 0.015 && (!near || Math.abs(ln.pol - modelP) < Math.abs(near.pol - modelP))) near = ln;
-  if (near) series.push({ x: D.x_khz, y: near.yn, color: css("--shell"), width: 1.8, dash: [6, 4] });
-  series.push({ x: xs, y: gP, color: css("--copper"), width: 2.2 });
+  if (near) series.push({ x: near.x, y: near.yn, color: css("--ink-2"), width: 1.8, dash: [6, 4] });
+  const col = modelP === 0 ? css("--muted") : signColor(modelP);
+  series.push({ x: xs, y: gP, color: col, width: 2.2 });
+  $("modelLegend").style.color = col;
   $("measLegend").hidden = !near;
   if (near) $("measLegendText").textContent = `measured, P = ${pct(near.pol)}`;
   const mm = measure(xs, gP);
-  const inside = modelP >= pRange[0] - 0.005 && modelP <= pRange[1] + 0.005;
+  const [g0p, g1p] = model.gap;
+  const where = modelP < model.pol_min || modelP > model.pol_max ? "shape held beyond the measured range"
+    : modelP > g0p && modelP < g1p ? `interpolated between ${pct(g0p, 0)} and ${pct(g1p, 0)}` : "within the measured range";
   plot("cvModel", {
     series, xmin: -220, xmax: 160, zero: true, xLabel: "offset from the P = 0 line center (kHz)",
     yLabel: "signal, area = 1 (per MHz)", readEl: "rdModel",
-    idle: `P = ${pct(modelP, 0)}: center ${sgn(mm.centroid)} kHz, peak ${sgn(mm.xp)} kHz, half widths ${mm.lo.toFixed(1)} / ${mm.hi.toFixed(1)} kHz` +
-      (inside ? " · within the measured range" : " · extrapolated beyond the measured 24–79%"),
-    onHover: (xv) => `${sgn(xv)} kHz: model ${interp(xs, gP, xv).toFixed(2)}` + (near ? `, measured ${interp(D.x_khz, near.yn, xv).toFixed(2)}` : ""),
+    idle: `P = ${pct(modelP, 0)}: center ${sgn(mm.centroid)} kHz, peak ${sgn(mm.xp)} kHz, half widths ${mm.lo.toFixed(1)} / ${mm.hi.toFixed(1)} kHz · ${where}`,
+    onHover: (xv) => `${sgn(xv)} kHz: model ${interp(xs, gP, xv).toFixed(2)}` + (near ? `, measured ${interp(near.x, near.yn, xv).toFixed(2)}` : ""),
   });
   const xk = model.knots;
   plot("cvParts", {
     series: [
-      { x: xk, y: model.A1, color: css("--shell"), width: 2 },
-      { x: xk, y: model.A0, color: css("--copper"), width: 2.2 },
+      { x: xk, y: model.ANEG, color: css("--copper"), width: 2 },
+      { x: xk, y: model.APOS, color: css("--shell"), width: 2 },
+      { x: xk, y: model.A0, color: css("--ink-2"), width: 2.2 },
     ], xmin: -220, xmax: 160, zero: true, xLabel: "offset from the P = 0 line center (kHz)",
     yLabel: "relative to the A₀ peak", readEl: "rdParts",
-    onHover: (xv) => `${sgn(xv)} kHz: A₀ ${interp(xk, model.A0, xv).toFixed(3)}, A₁ ${interp(xk, model.A1, xv).toFixed(3)}`,
+    onHover: (xv) => `${sgn(xv)} kHz: A₀ ${interp(xk, model.A0, xv).toFixed(3)}, A+ ${interp(xk, model.APOS, xv).toFixed(3)}, A− ${interp(xk, model.ANEG, xv).toFixed(3)}`,
   });
   $("maxErr").textContent = `${(100 * model.max_err).toFixed(1)}%`;
+  $("nFit").textContent = String(lines.length);
+  $("sPos").textContent = model.shift_pos.toFixed(1);
+  $("sNeg").textContent = model.shift_neg.toFixed(1);
+  $("rangeText").textContent = `${pct(model.pol_min, 0)} to ${pct(model.pol_max, 0)}`;
 }
 
 function drawAll() {
   if (!D) return;
-  drawTime(); drawLines(); drawChanges(); drawModel();
+  drawTime(); drawLines(); drawRev(); drawChanges(); drawModel();
 }
-const DRAW = { cvTime: drawTime, cvLines: drawLines, cvShift: drawChanges, cvWidth: drawChanges, cvPeak: drawChanges, cvModel: drawModel, cvParts: drawModel };
+const DRAW = {
+  cvTimeO: drawTime, cvTimeJ: drawTime, cvLines: drawLines, cvRev: drawRev, cvShift: drawChanges, cvWidth: drawChanges,
+  cvPeak: drawChanges, cvModel: drawModel, cvParts: drawModel,
+};
 
 // ---------- interaction ----------
 for (const id of Object.keys(DRAW)) {
@@ -375,8 +479,8 @@ for (const b of $("normSeg").querySelectorAll("button")) {
 }
 $("pSlider").addEventListener("input", (e) => {
   modelP = Number(e.target.value) / 100;
-  $("pValue").textContent = `${e.target.value}%`;
-  drawModel();
+  $("pValue").textContent = `${modelP < 0 ? "−" : ""}${Math.abs(Number(e.target.value))}%`;
+  if (D) drawModel();
 });
 
 function renderEquations() {
@@ -385,6 +489,11 @@ function renderEquations() {
   for (const el of els) katex.render(el.dataset.tex, el, { displayMode: el.tagName === "DIV", throwOnError: false });
 }
 
+const p0 = Number(new URLSearchParams(location.search).get("p"));
+if (Number.isFinite(p0) && p0 !== 0 && Math.abs(p0) <= 100) {
+  $("pSlider").value = String(Math.round(p0));
+  $("pSlider").dispatchEvent(new Event("input"));
+}
 renderEquations();
 new ResizeObserver(() => drawAll()).observe(document.querySelector(".wrap"));
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", drawAll);

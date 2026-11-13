@@ -219,9 +219,13 @@ a:hover { color: var(--ink); }
 @media (max-width: 880px) { .canvas-box.short { aspect-ratio: 16 / 9; } }
 .stage.one .canvas-box:not(.short) { aspect-ratio: 16 / 7; }
 @media (max-width: 880px) { .stage.one .canvas-box:not(.short) { aspect-ratio: 16 / 11; } }
-.ramp { display: inline-block; width: 120px; height: 8px; border-radius: 2px; }
-#rampLabels { font-family: var(--f-mono); font-size: 0.78rem; }
+.canvas-box.mid { aspect-ratio: 16 / 8; }
+.ramp { display: inline-block; width: 100px; height: 8px; border-radius: 2px; }
+.ramp-label { font-family: var(--f-mono); font-size: 0.78rem; }
+.legend-line .group { display: inline-flex; align-items: center; gap: 6px; }
 .sw.dot-m { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.sw.ring { width: 9px; height: 9px; border-radius: 50%; background: none; border: 2px solid var(--ink-2); box-sizing: border-box; }
+.sw.band { width: 14px; height: 10px; background: var(--muted); opacity: 0.25; }
 .findings, ul.plain { margin: 14px 0 0; padding-left: 18px; color: var(--ink-2); max-width: 95ch; display: grid; gap: 6px; }
 ul.plain { margin-top: 0; }
 .after-eq { margin: 8px 0 12px; color: var(--ink-2); max-width: 90ch; }
