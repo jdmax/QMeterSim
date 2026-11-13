@@ -25,7 +25,7 @@ ANALYSIS_DEFAULTS = dict(
     wings=[0.01, 0.25, 0.75, 0.99],  # polynomial fit regions, fractions of the sweep (as in rgc_offline)
     sum_range=[0.25, 0.75],          # integration range, fractions of the sweep
     order=3,                         # polynomial order (NMR_Analysis and rgc_offline use a cubic)
-    drift_ppm=0.0,                   # change in tuning capacitance between baseline and signal sweeps, ppm
+    drift_ppm=750.0,                 # change in tuning capacitance between baseline and signal sweeps, ppm
 )
 
 
@@ -52,7 +52,7 @@ def analyze_sweep(f, raw, baseline, wings, sum_range, order):
     sub = basesub - fit
     s = [x * n for x in sum_range]
     sum_mask = (idx > s[0]) & (idx < s[1])
-    return dict(basesub=basesub, fit=fit, sub=sub, area=float(sub[sum_mask].sum()))
+    return dict(raw=raw, basesub=basesub, fit=fit, sub=sub, area=float(sub[sum_mask].sum()))
 
 
 def _plateau(f, sm, i_pk, direction, floor=0.01, flat=0.2, steepen=1.5, tol=0.001, straight=0.5, fl=0.01):
@@ -271,8 +271,9 @@ def analyze(params, settings=None):
     out = dict(
         f_mhz=f, f0_mhz=f0, species=p['species'],
         pol_true=pol, pol_te=p_te, area_te=te['area'], area=en['area'], cc=cc, pol_area=cc * en['area'],
-        te={k: te[k] for k in ('basesub', 'fit', 'sub')},
-        en={k: en[k] for k in ('basesub', 'fit', 'sub')},
+        baseline=base['phase'],
+        te={k: te[k] for k in ('raw', 'basesub', 'fit', 'sub')},
+        en={k: en[k] for k in ('raw', 'basesub', 'fit', 'sub')},
         settings=s,
     )
     if p['species'] == 'd':

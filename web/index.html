@@ -99,6 +99,8 @@
 
   <section class="panel" aria-labelledby="anHead">
     <h2 id="anHead">Analyzing the signal</h2>
+    <details class="desc" id="anDesc" open>
+    <summary>How it works <span class="hint">from raw sweep to polarization, step by step</span></summary>
     <p>A Q-meter sweep becomes a polarization in a few steps, as in
       <a href="https://github.com/jdmax/NMR_Analysis">NMR_Analysis</a> and
       <a href="https://github.com/jdmax/rgc_offline">rgc_offline</a>. Here they run on the simulated phase signal
@@ -134,6 +136,7 @@
         output is pure absorption: cables rotate the signal's phase and mix in dispersion. The complex fit adds
         a phase angle to absorb this. Try both before and after pressing the phase plot's Tune button.</li>
     </ol>
+    </details>
 
     <div class="controls inset" role="group" aria-label="Analysis settings">
       <div class="ctl"><span class="eyebrow">Examples</span>
@@ -169,7 +172,18 @@
     <div class="stage an-stage">
       <div class="card flat">
         <div class="card-head">
-          <h2>1–2. Baseline subtracted, with polynomial</h2>
+          <h2>1. Raw sweep and baseline</h2>
+        </div>
+        <div class="canvas-box"><canvas id="cvRaw" aria-label="Raw phase-signal sweep with the baseline sweep"></canvas></div>
+        <div class="legend-line">
+          <span style="color:var(--copper)"><i class="sw"></i><span style="color:var(--muted)">sweep</span></span>
+          <span style="color:var(--shell)"><i class="sw dash"></i><span style="color:var(--muted)">baseline (no signal)</span></span>
+        </div>
+        <div class="readline" id="rdRaw" aria-live="off"></div>
+      </div>
+      <div class="card flat">
+        <div class="card-head">
+          <h2>2. Baseline subtracted, with polynomial</h2>
         </div>
         <div class="canvas-box"><canvas id="cvBase" aria-label="Baseline-subtracted sweep with polynomial fit to the wings"></canvas></div>
         <div class="legend-line">
@@ -178,7 +192,7 @@
         </div>
         <div class="readline" id="rdBase" aria-live="off"></div>
       </div>
-      <div class="card flat">
+      <div class="card flat wide">
         <div class="card-head">
           <h2>3. Fit subtracted, integrated</h2>
         </div>

@@ -110,14 +110,18 @@ section.panel > p { margin: 0 0 12px; color: var(--ink-2); max-width: 90ch; }
 .trim input[type="range"] { flex: 1 1 auto; width: auto; min-width: 0; }
 .trim .len { color: var(--muted); font-size: 0.8rem; }
 .subhead { font-family: var(--f-display); font-weight: 600; font-size: 0.95rem; margin: 16px 0 8px; }
-details.panel > summary {
+details.panel > summary, details.desc > summary {
   cursor: pointer; font-family: var(--f-display); font-weight: 600; font-size: 1.15rem; list-style: none;
   display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px;
 }
-details.panel > summary::-webkit-details-marker { display: none; }
-details.panel > summary::before { content: "▸"; color: var(--muted); font-size: 0.9rem; }
-details.panel[open] > summary::before { content: "▾"; }
-details.panel > summary .hint { font-family: var(--f-body); font-weight: 400; }
+details.panel > summary::-webkit-details-marker, details.desc > summary::-webkit-details-marker { display: none; }
+details.panel > summary::before, details.desc > summary::before { content: "▸"; color: var(--muted); font-size: 0.9rem; }
+details.panel[open] > summary::before, details.desc[open] > summary::before { content: "▾"; }
+details.panel > summary .hint, details.desc > summary .hint { font-family: var(--f-body); font-weight: 400; }
+details.desc { margin-bottom: 14px; }
+details.desc > summary { font-size: 0.95rem; }
+details.desc[open] > summary { margin-bottom: 4px; }
+details.desc > summary .hint { color: var(--muted); font-size: 0.85rem; }
 details.panel[open] > summary { margin-bottom: 12px; }
 details.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
 
@@ -169,6 +173,8 @@ ol.steps b { color: var(--ink); font-weight: 600; }
 .controls.inset input.frac { width: 5.2em; }
 .card.flat { background: transparent; border: 0; padding: 0; }
 .an-stage { margin-bottom: 4px; }
+.an-stage .wide { grid-column: 1 / -1; }
+@media (min-width: 881px) { .an-stage .wide .canvas-box { aspect-ratio: 16 / 7; } }
 .results { grid-template-columns: 1fr auto auto; max-width: 820px; }
 .results .e { text-align: right; }
 .sw.dot { background: none; border-top: 2px dotted currentColor; height: 0; width: 18px; border-radius: 0; }

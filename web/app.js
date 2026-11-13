@@ -9,7 +9,7 @@ const DEF = {
   sig: true, species: "p", pol: 0.0027, b: 5.0, d_A: 0.05, d_wq: 0.027, d_eta: 0.0,
   u: 1.0, r_cc: 681.0, c_stray: 0.001e-12, l_0: 0.175e-6, r_coil: 0.3, r_amp: 50.0, r_source: 50.0, r: 2.0,
   v_f: 0.78, alph: 0.0343, l_cab: 2.54e-7, c_per_m: 95.2e-12, eta: 0.0013, n_steps: 500,
-  a_te: 1.0, a_w0: 0.01, a_w1: 0.25, a_w2: 0.75, a_w3: 0.99, a_s0: 0.25, a_s1: 0.75, a_order: 3, a_drift: 0,
+  a_te: 1.0, a_w0: 0.01, a_w1: 0.25, a_w2: 0.75, a_w3: 0.99, a_s0: 0.25, a_s1: 0.75, a_order: 3, a_drift: 750,
 };
 const GYRO = { p: 42.576, d: 6.53566 };
 
@@ -441,7 +441,7 @@ function renderAnalysis() {
   const a = result.analysis;
   if (!a) {
     const msg = "Analysis: " + (result.analysis_error || "unavailable");
-    messageCanvas("cvBase", msg); messageCanvas("cvSub", msg);
+    messageCanvas("cvRaw", msg); messageCanvas("cvBase", msg); messageCanvas("cvSub", msg);
     $("anResults").innerHTML = `<span class="k" style="grid-column:1/-1">${msg.replace(/</g, "&lt;")}</span>`;
     return;
   }
@@ -453,6 +453,11 @@ function renderAnalysis() {
   const sum = [{ x0: fx(s.sum_range[0]), x1: fx(s.sum_range[1]), color: sumBand }];
   const sw = a[anView];
   const label = anView === "te" ? "TE" : "signal";
+
+  drawPlot("cvRaw", f, [
+    { y: a.baseline, color: css("--shell"), width: 1.8, dash: [6, 4], label: "baseline" },
+    { y: sw.raw, color: css("--copper"), width: 2, label: `${label} sweep` },
+  ], { marker: a.f0_mhz, readEl: "rdRaw" });
 
   drawPlot("cvBase", f, [
     { y: sw.basesub, color: css("--copper"), width: 2, label: `${label} − baseline` },
@@ -531,7 +536,7 @@ function renderResults(a) {
 }
 
 // crosshair interaction, shared by all plots
-for (const id of ["cvDiode", "cvPhase", "cvBase", "cvSub"]) {
+for (const id of ["cvDiode", "cvPhase", "cvRaw", "cvBase", "cvSub"]) {
   const cv = $(id);
   const move = (e) => {
     const g = plots[id];
@@ -576,6 +581,7 @@ $("btnCsv").addEventListener("click", () => {
   const r = result.sim, a = result.analysis;
   const cols = [["f_mhz", r.f_mhz], ["diode", r.diode], ["phase", r.phase]];
   if (a) {
+    cols.push(["baseline_sweep", a.baseline], ["signal_sweep", a.en.raw], ["te_sweep", a.te.raw]);
     cols.push(["baseline_subtracted", a.en.basesub], ["polynomial_fit", a.en.fit], ["fit_subtracted", a.en.sub]);
     cols.push(["te_baseline_subtracted", a.te.basesub], ["te_fit_subtracted", a.te.sub]);
   }
