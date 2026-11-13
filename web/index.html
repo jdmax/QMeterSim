@@ -31,8 +31,6 @@
         <button type="button" data-v="p" aria-pressed="true">Proton</button>
         <button type="button" data-v="d" aria-pressed="false">Deuteron</button>
       </div></div>
-    <div class="ctl"><label class="eyebrow" for="p_b">Field (T)</label>
-      <input type="number" id="p_b" data-p="b" data-min="0.01" step="0.01" min="0.01"></div>
     <div class="ctl"><label class="eyebrow" for="p_sweep_range">Sweep ± (MHz)</label>
       <input type="number" id="p_sweep_range" data-p="sweep_range" data-min="0.001" step="0.1" min="0.001"></div>
     <div class="ctl"><label class="eyebrow" for="p_capacitance">Capacitance (× tune)</label>
@@ -238,7 +236,7 @@
           <li>The series tank (damping R, tuning C, coil L) has a fourth transmission line between C and L,
             usually called the λ/2 cable. The signal line connects the tank to the other side of the mixer.</li>
           <li>Capacitance is in units of the value that tunes the bare tank (no cables) to the Larmor
-            frequency for the chosen species at the given field. Phase is in degrees from ideal tune with zero
+            frequency for the chosen species at 5 T. Phase is in degrees from ideal tune with zero
             line length.</li>
           <li>The optional polarization signal enters as a complex susceptibility multiplying the coil
             inductance, L = L<sub>0</sub>(1 + 4πηχ). For protons the lineshape is fitted to measured signals
@@ -274,7 +272,8 @@
         <div class="eq" data-tex="C = \frac{c}{\omega_0^{2} L_0}"></div>
         <p>The capacitance control <span data-tex="c"></span> is in units of the capacitor that resonates
           the bare coil at <span data-tex="\omega_0"></span>, with
-          <span data-tex="\gamma_p = 42.576"></span> and <span data-tex="\gamma_d = 6.536"></span> MHz/T.</p>
+          <span data-tex="\gamma_p = 42.576"></span> and <span data-tex="\gamma_d = 6.536"></span> MHz/T, and
+          the field fixed at <span data-tex="B = 5"></span> T (212.88 MHz for protons, 32.68 MHz for deuterons).</p>
       </div>
 
       <div class="eqcard">

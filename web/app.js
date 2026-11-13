@@ -64,7 +64,7 @@ function analysisSettings() {
 function readUrl() {
   const q = new URLSearchParams(location.search);
   for (const [k, v] of q) {
-    if (!(k in DEF)) continue;
+    if (!(k in DEF) || k === "b") continue;          // the field is fixed at 5 T
     if (k === "species") P.species = v === "d" ? "d" : "p";
     else if (k === "sig") P.sig = v !== "0" && v !== "false";
     else if (Number.isFinite(Number(v))) P[k] = Number(v);
