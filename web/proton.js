@@ -324,7 +324,6 @@ function buildEpisodeButtons() {
 }
 function choose(id) {
   sel = id; hlLine = -1;
-  setNorm(epOf(id).kind === "reversal" ? "raw" : "area");   // near zero a reversal has no area to scale by
   for (const tr of $("epTable").querySelectorAll("tbody tr")) tr.setAttribute("aria-selected", String(tr.dataset.ep === id));
   for (const b of $("epSeg").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.ep === id));
   const e = epOf(id), h = hourOfDay(e.start);
