@@ -1,6 +1,6 @@
 // Runs the Q-meter model (qmeter.py) and the signal analysis (analysis.py) in Pyodide, off the main thread.
 const PYODIDE = "https://cdn.jsdelivr.net/pyodide/v0.27.2/full/";
-const PY_FILES = ["qmeter.py", "deuteron_lineshape.py", "analysis.py"];
+const PY_FILES = ["qmeter.py", "deuteron_lineshape.py", "proton_lineshape.py", "analysis.py"];
 
 async function boot() {
   postMessage({ type: "progress", text: "Loading Pyodide…" });

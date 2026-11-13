@@ -7,6 +7,10 @@ change cable lengths, tuning, phase, species, field and the circuit constants.
 
 - **Tune** buttons on the diode and phase plots set the capacitance (and, for the phase signal, the phase) that center
   the curve on the Larmor frequency for the current cable lengths.
+- **Proton signal:** a measured 5 T proton line from [NMR_Analysis](https://github.com/jdmax/NMR_Analysis),
+  about 35 kHz wide and asymmetric. Its dispersion is computed exactly from it, and its size follows Seely's
+  susceptibility with the notebook's Hill & Hill normalization. This replaces the notebook's analytic lineshape,
+  whose complex power below resonance made the line lopsided the wrong way and its dispersion unphysical.
 - **Deuteron signal:** the Pake doublet of Dulya et al. [[1]](#1), ported from
   [DeuteronPeakFit](https://github.com/jdmax/DeuteronPeakFit), with its Kramers–Kronig dispersion. It is normalized
   to the same susceptibility per spin as the proton signal.
@@ -44,6 +48,8 @@ which the reference cable or the phase setting corrects.
 
 * `qmeter.py`: the notebook's circuit, vectorized with numpy, with corrected cables (see below), plus tuning
 * `deuteron_lineshape.py`: the deuteron lineshape and susceptibility
+* `proton_lineshape.py`: a measured proton lineshape (from NMR_Analysis's `10_9_22_proton.json`) and its exact
+  Kramers–Kronig dispersion
 * `analysis.py`: baseline and polynomial subtraction, integration, TE calibration, deuteron lineshape fits
 * `test_qmeter.py`: checks `qmeter.py` against a verbatim copy of the notebook's `update()` code with
   zero-length cables, checks that matched cables don't change the Q-curve, and checks the tuning, the deuteron

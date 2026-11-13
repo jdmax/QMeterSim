@@ -19,6 +19,7 @@ import json
 import numpy as np
 
 import deuteron_lineshape
+import proton_lineshape
 
 GYROMAGNETIC = {'p': 42.576, 'd': 6.53566}  # MHz/T
 
@@ -84,13 +85,10 @@ def susceptibility(p, w):
     """Complex susceptibility chi = chi' - i chi'' of the sample at angular frequencies w."""
     w0 = 2 * np.pi * larmor_mhz(p) * 1e6
     if p['species'] == 'p':
-        # Hill & Hill lineshape with Seely's chi0, exactly as in the notebook (whose pol is -p['pol']).
-        # For w < w0 the power of a negative number is the principal complex value, as in the notebook.
-        chi_0 = CHI0_PER_POL_P * -p['pol']
-        del_w = 6e-2 * 2 * np.pi * 1e6    # width between derivative extrema
-        x = ((w - w0) / del_w).astype(complex)
-        chi_pp = 1.035 * chi_0 * w0 / del_w * (1 / (1 + 4 * np.power(x, 2.35)))
-        return 1j * chi_pp
+        # measured lineshape (jdmax/NMR_Analysis) with its exact Kramers-Kronig dispersion; Seely's chi0 and the
+        # notebook's Hill & Hill normalization, integral of chi'' d omega = (pi/2) omega0 chi0
+        return proton_lineshape.susceptibility(w / (2 * np.pi * 1e6), p['pol'], w0 / (2 * np.pi * 1e6),
+                                               CHI0_PER_POL_P)
     return deuteron_lineshape.susceptibility(w / (2 * np.pi * 1e6), p['pol'], w0 / (2 * np.pi * 1e6),
                                              CHI0_PER_POL_D, wQ=p['d_wq'], A=p['d_A'], eta=p['d_eta'])
 

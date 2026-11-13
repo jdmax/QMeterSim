@@ -18,7 +18,7 @@ WEB = Path(__file__).resolve().parent
 REPO = WEB.parent
 SITE = WEB / "_site"
 PAGE_FILES = ["index.html", "app.js", "worker.js", "style.css"]
-PY_FILES = ["qmeter.py", "deuteron_lineshape.py", "analysis.py"]
+PY_FILES = ["qmeter.py", "deuteron_lineshape.py", "proton_lineshape.py", "analysis.py"]
 REPO_ASSETS = ["schem.PNG"]   # shared with the notebook's README, so kept at the repo root
 
 

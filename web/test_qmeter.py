@@ -99,12 +99,13 @@ def notebook_update(trim_sup, trim_sig, trim_ref, trim_coil, capacitance, phase,
 
 
 def test_zero_length_matches_notebook():
-    """With zero-length cables the corrected model is the notebook's circuit, up to an overall scale: the
-    source now sees its matched 50 ohm loads (1/2 at the tank, 1/2 vs 2/3 at the mixer reference)."""
+    """With zero-length cables and no signal, the corrected model is the notebook's circuit, up to an overall
+    scale: the source now sees its matched 50 ohm loads (1/2 at the tank, 1/2 vs 2/3 at the mixer reference).
+    (The proton signal now uses a measured lineshape rather than the notebook's, so it isn't compared.)"""
     zero = dict(trim_sup=0.0, trim_sig=0.0, trim_ref=0.0, trim_coil=0.0)
     n = 0
     for (cap, phase, sweep), sig, pol_nb in itertools.product(((1.0, 0, 0.4), (0.97, 35, 1.2), (1.05, -80, 0.6)),
-                                                              (True, False), (-0.0027, 0.4)):
+                                                              (False,), (-0.0027,)):
         case = dict(capacitance=cap, phase=phase, sweep_range=sweep)
         f, ph, di, c_pf, lb2 = notebook_update(**{k: 1e-12 for k in zero}, **case, sig=sig, species='p', pol=pol_nb)
         res = qmeter.simulate(**zero, **case, sig=sig, species='p', pol=-pol_nb)   # physical sign = -notebook's
@@ -144,6 +145,32 @@ def test_cables():
     # a lambda/2 coil cable passes the coil impedance through, so the tank still tunes near capacitance 1
     assert abs(qmeter.tune('diode', trim_coil=1.0)['capacitance'] - 1) < 0.05
     print("test_cables: OK")
+
+
+def test_proton_lineshape():
+    import proton_lineshape as pl
+    p = qmeter._params(dict(species='p', pol=0.3))
+    f0 = qmeter.larmor_mhz(p)
+    f = np.linspace(f0 - 8, f0 + 8, 2 ** 17, endpoint=False)
+    x = (f - f0) * 1e3
+    # dispersion is the exact Kramers-Kronig partner: chi' = -H[chi'']
+    g = pl.absorption(x)
+    near = abs(x) < 400
+    assert np.max(abs(pl.hilbert(x[near]) - _hilbert(g)[near])) < 1e-3
+    chi = qmeter.susceptibility(p, 2 * np.pi * f * 1e6)
+    assert np.allclose(chi.real, -0.3 * qmeter.CHI0_PER_POL_P * (np.pi / 2) * f0 * 1e3 / pl.AREA_KHZ * pl.hilbert(x))
+    # normalized like the notebook's line: integral of chi'' d omega = (pi/2) omega0 chi0
+    w = 2 * np.pi * f * 1e6
+    assert np.isclose(np.trapezoid(-chi.imag, w), (np.pi / 2) * 2 * np.pi * f0 * 1e6 * qmeter.CHI0_PER_POL_P * 0.3,
+                      rtol=1e-4)
+    # measured shape: ~35 kHz wide, sharp high-frequency edge, long low-frequency tail; centroid at f0
+    ab = -chi.imag
+    i0 = np.argmax(ab)
+    half = np.nonzero(ab > ab.max() / 2)[0]
+    assert 30 < 1e3 * (f[half[-1]] - f[half[0]]) < 40
+    assert (f[i0] - f[half[0]]) > 1.5 * (f[half[-1]] - f[i0])
+    assert abs(np.sum(ab * x) / np.sum(ab)) < 0.1
+    print("test_proton_lineshape: OK")
 
 
 def test_json_entry():
@@ -262,4 +289,5 @@ if __name__ == '__main__':
     test_json_entry()
     test_tune()
     test_deuteron_lineshape()
+    test_proton_lineshape()
     test_analysis()
