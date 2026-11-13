@@ -601,8 +601,12 @@ for (const b of document.querySelectorAll("[data-example]")) {
   b.addEventListener("click", () => {
     const [species, pol] = b.dataset.example.split(":");
     P.species = species; P.pol = Number(pol);
+    // optional cable lengths (supply, signal, reference, coil); the tank is then phase-tuned for them
+    const cables = b.dataset.cables ? b.dataset.cables.split(",").map(Number) : null;
+    if (cables) ["trim_sup", "trim_sig", "trim_ref", "trim_coil"].forEach((k, i) => { P[k] = cables[i]; });
     syncControls();
     onChange("example");
+    if (cables) requestTune("phase");
   });
 }
 
