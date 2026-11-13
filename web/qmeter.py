@@ -8,8 +8,11 @@ Series-tank Q-meter model, based initially on MathCAD code by M. Houlden, G. Cou
     G.R. Court, M.A. Houlden, et. al. "High precision measurement of the polarization in solid state polarized
     targets using NMR," NIM A 527 (2004) 253-263. https://doi.org/10.1016/j.nima.2004.02.041
 
-This is the same circuit as `update()` in qmeter_sim.ipynb, rewritten with numpy arrays instead of per-point
-lambdas so that it is fast enough to run live in the browser (Pyodide). The web app imports this file directly.
+The circuit is that of `update()` in qmeter_sim.ipynb, vectorized with numpy so it runs live in the browser
+(Pyodide), with the cables corrected: each line's characteristic impedance comes from the per-metre cable
+constants, so it doesn't depend on its length (the notebook divides by the line's total capacitance), and
+the source voltage is carried through the supply, signal and reference lines. With zero-length cables the
+two agree up to an overall scale. The web app imports this file directly.
 """
 
 import json
@@ -21,10 +24,10 @@ GYROMAGNETIC = {'p': 42.576, 'd': 6.53566}  # MHz/T
 
 DEFAULTS = dict(
     # interactive controls (notebook widgets)
-    trim_sup=1e-9,      # supply cable length, units of lambda/2
-    trim_sig=1e-9,      # signal cable length, units of lambda/2
-    trim_ref=1e-9,      # reference cable length, units of lambda/2
-    trim_coil=1e-9,     # coil (lambda/2) cable length, units of lambda/2
+    trim_sup=0.0,       # supply cable length, units of lambda/2
+    trim_sig=0.0,       # signal cable length, units of lambda/2
+    trim_ref=0.0,       # reference cable length, units of lambda/2
+    trim_coil=0.0,      # coil (lambda/2) cable length, units of lambda/2
     capacitance=1.0,    # tuning capacitance, units of the bare-tank tune capacitance
     phase=0.0,          # phase between signal and reference, degrees
     sweep_range=0.4,    # half-width of frequency sweep, MHz
@@ -48,15 +51,12 @@ DEFAULTS = dict(
     r_source=50.0,      # source output impedance, ohm
     r=2.0,              # damping resistor, ohm
     v_f=0.78,           # cable velocity factor
-    alph=0.0343,        # cable attenuation constant
-    l_cab=2.54e-7,      # cable inductance
+    alph=0.0343,        # cable attenuation constant, 1/m
+    l_cab=2.54e-7,      # cable inductance per meter, H/m
     c_per_m=95.2e-12,   # cable capacitance per meter, F/m
     eta=0.0013,         # filling factor
     n_steps=500,        # points in sweep
 )
-
-MIN_TRIM = 1e-9  # zero-length cables are singular in this model (z0 -> inf); clamp like the notebook defaults
-
 
 def _params(kwargs):
     p = dict(DEFAULTS)
@@ -96,7 +96,17 @@ def susceptibility(p, w):
 
 
 def _circuit(p, w):
-    """Evaluate the Q-meter at angular frequencies w (array). Returns complex voltages and lengths."""
+    """Evaluate the Q-meter at angular frequencies w (array). Returns complex voltages and lengths.
+
+    Each cable is a uniform lossy line with per-metre resistance, inductance and capacitance, so its
+    characteristic impedance Z0 (about 51.7 ohm) and propagation constant gamma do not depend on its length.
+    Each stage is reduced to a Thevenin source (open-circuit voltage, source impedance) and carried through
+    the next line: a line of length l with input source (V, Zs) gives, at its far end,
+        open-circuit voltage  V / (cosh(gamma l) + (Zs/Z0) sinh(gamma l)),
+        source impedance      T[Zs] = Z0 (Zs + Z0 tanh(gamma l)) / (Z0 + Zs tanh(gamma l)).
+    A line terminated in Z0 is matched: it delays and attenuates the voltage but doesn't change the curve's
+    shape, which is why the supply and signal lengths aren't critical (Court et al. 2004, sec. 5.6).
+    """
     u, r_cc, r_amp, r_source, r = p['u'], p['r_cc'], p['r_amp'], p['r_source'], p['r']
     l_0, r_coil, c_stray = p['l_0'], p['r_coil'], p['c_stray']
 
@@ -106,20 +116,25 @@ def _circuit(p, w):
 
     vel = p['v_f'] * 2.99e8               # velocity in cable
     lb2 = vel / (2 * f0 * 1e6)            # lambda/2 cable length in m
-    trims = {k: max(float(p[k]), MIN_TRIM) for k in ('trim_sup', 'trim_sig', 'trim_ref', 'trim_coil')}
+    trims = {k: max(float(p[k]), 0.0) for k in ('trim_sup', 'trim_sig', 'trim_ref', 'trim_coil')}
     len_sup = trims['trim_sup'] * lb2
     len_sig = trims['trim_sig'] * lb2
     len_ref = trims['trim_ref'] * lb2
     len_coil = trims['trim_coil'] * lb2
 
     alph = p['alph']
-    gam = alph + 1j * w / vel             # loss term as signal travels down cable
-    r_cab = 2 * 50 * alph                 # cable resistance
-    l_cab = p['l_cab']
-    c_sup = p['c_per_m'] * len_sup
-    c_sig = p['c_per_m'] * len_sig
-    c_ref = p['c_per_m'] * len_ref
-    c_coil = p['c_per_m'] * len_coil
+    gam = alph + 1j * w / vel             # propagation constant, per metre
+    r_cab = 2 * 50 * alph                 # cable resistance per metre (alpha = R'/2Z0)
+    z0 = np.sqrt((r_cab + 1j * w * p['l_cab']) / (1j * w * p['c_per_m']))   # characteristic impedance
+
+    def trans(zs, length):
+        """Impedance at one end of a line whose other end is terminated by zs."""
+        t = np.tanh(gam * length)
+        return z0 * ((zs + z0 * t) / (z0 + zs * t))
+
+    def carry(v, zs, length):
+        """Open-circuit voltage at the far end of a line driven by a source v with impedance zs."""
+        return v / (np.cosh(gam * length) + (zs / z0) * np.sinh(gam * length))
 
     # simulated signal: L = L0 (1 + 4 pi eta chi), chi = chi' - i chi''
     if p['sig']:
@@ -128,37 +143,31 @@ def _circuit(p, w):
     else:
         l_coil = l_0
 
-    def z0_calc(c_cab):
-        """Characteristic impedance of transmission line."""
-        return np.sqrt((r_cab + 1j * w * l_cab) / (1j * w * c_cab))
-
-    def trans(z0, zl, length):
-        """Transmission line input impedance for characteristic impedance z0 and load zl."""
-        t = np.tanh(gam * length)
-        return z0 * ((zl + z0 * t) / (z0 + zl * t))
-
-    z0_sup, z0_sig, z0_ref, z0_coil = z0_calc(c_sup), z0_calc(c_sig), z0_calc(c_ref), z0_calc(c_coil)
-
     zc = 1 / (1j * w * c)                                 # tuning capacitor
     zc_stray = 1 / (1j * w * c_stray)                     # stray capacitance
     zl_pure = r_coil + 1j * w * l_coil                    # coil only
     z_l = zl_pure * zc_stray / (zl_pure + zc_stray)       # coil and stray capacitance
-    z_coil = trans(z0_coil, z_l, len_coil)                # coil through its transmission line
+    z_coil = trans(z_l, len_coil)                         # coil through its transmission line
     z_tank = r + zc + z_coil                              # tank leg
-    z_sup = trans(z0_sup, r_source, len_sup)              # supply line and source
-    z_cc = r_cc + 1 / (1 / 50 + 1 / z_sup)                # supply, 50 ohm to ground, constant current resistor
-    z_eq = 1 / (1 / z_tank + 1 / z_cc)                    # parallel legs
-    z_tot = trans(z0_sig, z_eq, len_sig)                  # parallel legs through signal line
 
-    z_ref = 1 / (1 / trans(z0_ref, r_source, len_ref) + 1 / 50)
-    v_ref = u * (r_amp / (r_amp + z_ref))                 # voltage into mixer reference
-    v_eq = u * (z_tank / (z_tank + z_cc))                 # voltage into signal line
-    v_rf = v_eq * (r_amp / (r_amp + z_tot))               # voltage into mixer rf
+    # supply: source (u, r_source) -> supply line -> 50 ohm to ground -> Rcc
+    z_sup = trans(r_source, len_sup)                      # looking back up the supply line
+    v_sup = carry(u, r_source, len_sup) * 50 / (50 + z_sup)   # Thevenin voltage across the 50 ohm
+    z_cc = r_cc + 50 * z_sup / (50 + z_sup)               # Thevenin impedance through Rcc
+    # tank node
+    v_eq = v_sup * z_tank / (z_tank + z_cc)               # open-circuit voltage at the tank
+    z_eq = z_tank * z_cc / (z_tank + z_cc)                # parallel legs
+    # signal line -> mixer RF input (r_amp)
+    z_tot = trans(z_eq, len_sig)                          # source impedance seen by the mixer
+    v_rf = carry(v_eq, z_eq, len_sig) * r_amp / (r_amp + z_tot)   # voltage into mixer rf
+    # reference line -> mixer LO input (r_amp)
+    z_ref = trans(r_source, len_ref)
+    v_ref = carry(u, r_source, len_ref) * r_amp / (r_amp + z_ref)  # voltage into mixer reference
 
     rot = np.exp(1j * p['phase'] * np.pi / 180)
     return dict(
         v_out=v_rf * rot,                                 # voltage into diode
-        v_mixer=v_rf * v_ref * rot,                       # output of ideal mixer
+        v_mixer=v_rf * np.conj(v_ref) * rot,              # ideal mixer: responds to the phase difference
         f0_mhz=f0, w0=w0, c_pf=c * 1e12, lambda2_m=lb2,
         len_sup_m=len_sup, len_sig_m=len_sig, len_ref_m=len_ref, len_coil_m=len_coil,
     )

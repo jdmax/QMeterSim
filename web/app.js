@@ -5,7 +5,7 @@
 // Mirror of qmeter.DEFAULTS so the page can render before Python loads; replaced by the real values on ready.
 // Keys starting with a_ are analysis settings (analysis.ANALYSIS_DEFAULTS), not model parameters.
 const DEF = {
-  trim_sup: 1e-9, trim_sig: 1e-9, trim_ref: 1e-9, trim_coil: 1e-9, capacitance: 1.0, phase: 0.0, sweep_range: 0.4,
+  trim_sup: 0, trim_sig: 0, trim_ref: 0, trim_coil: 0, capacitance: 1.0, phase: 0.0, sweep_range: 0.4,
   sig: true, species: "p", pol: 0.0027, b: 5.0, d_A: 0.05, d_wq: 0.027, d_eta: 0.0,
   u: 1.0, r_cc: 681.0, c_stray: 0.001e-12, l_0: 0.175e-6, r_coil: 0.3, r_amp: 50.0, r_source: 50.0, r: 2.0,
   v_f: 0.78, alph: 0.0343, l_cab: 2.54e-7, c_per_m: 95.2e-12, eta: 0.0013, n_steps: 500,
@@ -29,8 +29,8 @@ const CONSTS = [
   { p: "r_amp", name: "Detector Z (Ω)", step: 1, min: 0 },
   { p: "u", name: "RF voltage (V)", step: 0.1, min: 0 },
   { p: "v_f", name: "Cable velocity factor", step: 0.01, min: 0.01, max: 1 },
-  { p: "alph", name: "Cable attenuation α", step: 0.001, min: 0 },
-  { p: "l_cab", name: "Cable L (µH)", scale: 1e-6, step: 0.01, min: 0 },
+  { p: "alph", name: "Cable attenuation α (1/m)", step: 0.001, min: 0 },
+  { p: "l_cab", name: "Cable L (µH/m)", scale: 1e-6, step: 0.01, min: 0 },
   { p: "c_per_m", name: "Cable C (pF/m)", scale: 1e-12, step: 0.1, min: 1e-6 },
   { p: "eta", name: "Filling factor η", step: 0.0001, min: 0 },
   { p: "n_steps", name: "Sweep points", step: 50, min: 10, max: 20000, int: true },
@@ -127,7 +127,7 @@ function buildConsts() {
 
 function fmtInput(v, scale = 1) {
   const x = v / scale;
-  if (x !== 0 && Math.abs(x) < 1e-6 && scale === 1) return "0";     // the 1e-9 trim floor reads as zero
+  if (x !== 0 && Math.abs(x) < 1e-6 && scale === 1) return "0";     // links from before zero-length cables were allowed carry a 1e-9 floor
   return String(clean(x));
 }
 
@@ -163,7 +163,7 @@ function lambda2() { return (P.v_f * 2.99e8) / (2 * larmor() * 1e6); }
 function updateLengths() {
   const lb2 = lambda2();
   $("lb2Note").textContent = `λ/2 = ${lb2.toFixed(3)} m at ${larmor().toFixed(3)} MHz, v = ${P.v_f}c`;
-  for (const t of TRIMS) $("len_" + t.p).textContent = `${(Math.max(P[t.p], 1e-9) * lb2).toFixed(3)} m`;
+  for (const t of TRIMS) $("len_" + t.p).textContent = `${(P[t.p] * lb2).toFixed(3)} m`;
 }
 
 function onChange(src) {

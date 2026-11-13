@@ -238,7 +238,11 @@
             dispersion as well as its absorption.</li>
           <li>Polarization has its physical sign: positive is absorptive, as at thermal equilibrium. The
             notebook's <code>pol</code> is the negative of this, so its default of −0.0027 is +0.27% here.</li>
-          <li>A length of exactly zero is singular in this model, so lengths are clamped to 10<sup>−9</sup> λ/2.</li>
+          <li>The supply, signal and reference lines end in 50 Ω, close to the cable's characteristic impedance,
+            so they are matched. Their lengths only delay and attenuate the RF, and don't change the shape of the
+            Q-curve, as in Court <i>et al.</i> The delay rotates the phase signal; a reference cable as long as the
+            supply and signal cables together cancels it, and the phase Tune button corrects it.</li>
+          <li>The schematic leaves out the coil cable between C and L.</li>
           <li>Lengths are in units of λ/2, so a coil cable of 1 is a true λ/2 line that passes the coil
             impedance through almost unchanged. Near 0.5 (λ/4) the line makes the coil look capacitive, and the
             series tank cannot be tuned.</li>
@@ -250,7 +254,8 @@
     <p class="eqintro">Every quantity is evaluated at each sweep frequency ω. Lines are labeled
       <i>i</i> ∈ {sup, sig, ref, coil}, <span data-tex="a \parallel b \equiv ab/(a+b)"></span>, and
       <span data-tex="\mathcal{T}_i[Z]"></span> is the input impedance of line <i>i</i> terminated by
-      <span data-tex="Z"></span>.</p>
+      <span data-tex="Z"></span>. Each stage is reduced to a Thevenin source (an open-circuit voltage and a
+      source impedance) and carried through the next line.</p>
     <div class="eqgrid">
       <div class="eqcard">
         <h3>Larmor frequency and tuning capacitor</h3>
@@ -265,10 +270,17 @@
         <h3>Transmission lines</h3>
         <div class="eq" data-tex="\ell_i = n_i\,\frac{\lambda}{2}, \qquad \frac{\lambda}{2} = \frac{v_f\,c_0}{2 f_0}"></div>
         <div class="eq" data-tex="\Gamma(\omega) = \alpha + \frac{i\omega}{v_f\,c_0}"></div>
-        <div class="eq" data-tex="Z_{0,i} = \sqrt{\frac{R_c + i\omega L_c}{i\omega\, C'\ell_i}}, \qquad R_c = 2\cdot 50\,\Omega\cdot\alpha"></div>
-        <div class="eq" data-tex="\mathcal{T}_i[Z] = Z_{0,i}\,\frac{Z + Z_{0,i}\tanh \Gamma\ell_i}{Z_{0,i} + Z\tanh \Gamma\ell_i}"></div>
-        <p><span data-tex="n_i"></span> is the cable length control, <span data-tex="C'"></span> the cable
-          capacitance per meter and <span data-tex="L_c"></span> the cable inductance.</p>
+        <div class="eq" data-tex="Z_0 = \sqrt{\frac{R' + i\omega L'}{i\omega C'}}, \qquad R' = 2\cdot 50\,\Omega\cdot\alpha"></div>
+        <div class="eq" data-tex="\mathcal{T}_i[Z] = Z_0\,\frac{Z + Z_0\tanh \Gamma\ell_i}{Z_0 + Z\tanh \Gamma\ell_i}"></div>
+        <div class="eq" data-tex="\mathcal{G}_i[Z] = \frac{1}{\cosh\Gamma\ell_i + (Z/Z_0)\sinh\Gamma\ell_i}"></div>
+        <p><span data-tex="n_i"></span> is the cable length control, and <span data-tex="R'"></span>,
+          <span data-tex="L'"></span>, <span data-tex="C'"></span> are the cable's resistance, inductance and
+          capacitance per meter, so <span data-tex="Z_0 \approx 51.7\ \Omega"></span> whatever the length.
+          A source <span data-tex="V"></span> with impedance <span data-tex="Z"></span> at one end of a line
+          gives the open-circuit voltage <span data-tex="\mathcal{G}_i[Z]\,V"></span> and source impedance
+          <span data-tex="\mathcal{T}_i[Z]"></span> at the other. For a matched line,
+          <span data-tex="Z = Z_0"></span>, these are <span data-tex="e^{-\Gamma\ell_i}V"></span> and
+          <span data-tex="Z_0"></span>: a delay and attenuation only.</p>
       </div>
 
       <div class="eqcard">
@@ -300,23 +312,30 @@
       <div class="eqcard">
         <h3>Tank, supply and signal line</h3>
         <div class="eq" data-tex="Z_\text{tank} = R_D + \frac{1}{i\omega C} + \mathcal{T}_\text{coil}[Z_L]"></div>
-        <div class="eq" data-tex="Z_\text{cc} = R_\text{cc} + \Big(\tfrac{1}{50\,\Omega} + \tfrac{1}{\mathcal{T}_\text{sup}[R_s]}\Big)^{-1}"></div>
+        <div class="eq" data-tex="Z_\text{sup} = \mathcal{T}_\text{sup}[R_s], \qquad Z_\text{cc} = R_\text{cc} + 50\,\Omega \parallel Z_\text{sup}"></div>
         <div class="eq" data-tex="Z_\text{eq} = Z_\text{tank} \parallel Z_\text{cc}, \qquad Z_\text{tot} = \mathcal{T}_\text{sig}[Z_\text{eq}]"></div>
         <p><span data-tex="R_D"></span> is the damping resistor, <span data-tex="R_s"></span> the source
-          impedance, and the 50 Ω is the termination to ground.</p>
+          impedance, and the 50 Ω is the supply line's termination to ground. <span data-tex="Z_\text{sup}"></span>,
+          <span data-tex="Z_\text{cc}"></span>, <span data-tex="Z_\text{eq}"></span> and
+          <span data-tex="Z_\text{tot}"></span> are the source impedances looking back toward the RF source.</p>
       </div>
 
       <div class="eqcard">
         <h3>Voltages at the mixer</h3>
-        <div class="eq" data-tex="V_\text{eq} = U\,\frac{Z_\text{tank}}{Z_\text{tank} + Z_\text{cc}}, \qquad V_\text{rf} = V_\text{eq}\,\frac{R_\text{amp}}{R_\text{amp} + Z_\text{tot}}"></div>
-        <div class="eq" data-tex="Z_\text{ref} = \Big(\tfrac{1}{\mathcal{T}_\text{ref}[R_s]} + \tfrac{1}{50\,\Omega}\Big)^{-1}, \qquad V_\text{ref} = U\,\frac{R_\text{amp}}{R_\text{amp} + Z_\text{ref}}"></div>
-        <div class="eq" data-tex="\text{diode} = \big|V_\text{rf}\,e^{i\phi}\big|, \qquad \text{phase} = -\operatorname{Re}\!\big(V_\text{rf}\,V_\text{ref}\,e^{i\phi}\big)"></div>
+        <div class="eq" data-tex="V_\text{cc} = U\,\mathcal{G}_\text{sup}[R_s]\,\frac{50\,\Omega}{50\,\Omega + Z_\text{sup}}, \qquad V_\text{eq} = V_\text{cc}\,\frac{Z_\text{tank}}{Z_\text{tank} + Z_\text{cc}}"></div>
+        <div class="eq" data-tex="V_\text{rf} = V_\text{eq}\,\mathcal{G}_\text{sig}[Z_\text{eq}]\,\frac{R_\text{amp}}{R_\text{amp} + Z_\text{tot}}"></div>
+        <div class="eq" data-tex="Z_\text{ref} = \mathcal{T}_\text{ref}[R_s], \qquad V_\text{ref} = U\,\mathcal{G}_\text{ref}[R_s]\,\frac{R_\text{amp}}{R_\text{amp} + Z_\text{ref}}"></div>
+        <div class="eq" data-tex="\text{diode} = \big|V_\text{rf}\big|, \qquad \text{phase} = -\operatorname{Re}\!\big(V_\text{rf}\,V_\text{ref}^{*}\,e^{i\phi}\big)"></div>
+        <p>The mixer inputs are terminated by <span data-tex="R_\text{amp}"></span> (the 50 Ω at each mixer
+          input in the schematic). The mixer responds to the phase difference between its inputs, hence
+          <span data-tex="V_\text{ref}^{*}"></span>, so the reference cable's delay offsets the supply and signal
+          cables' delay.</p>
       </div>
 
       <div class="eqcard">
         <h3>The Tune buttons</h3>
         <div class="eq" data-tex="\text{Diode: find } c \text{ such that } \left.\frac{\partial\,|V_\text{rf}|}{\partial\omega}\right|_{\omega_0} = 0"></div>
-        <div class="eq" data-tex="\text{Phase: } \phi = \pm\frac{\pi}{2} - \arg\left.\frac{\partial\,(V_\text{rf}V_\text{ref})}{\partial\omega}\right|_{\omega_0}"></div>
+        <div class="eq" data-tex="\text{Phase: } \phi = \pm\frac{\pi}{2} - \arg\left.\frac{\partial\,(V_\text{rf}V_\text{ref}^{*})}{\partial\omega}\right|_{\omega_0}"></div>
         <p>Both use the baseline (signal off) and leave cable lengths alone. Diode tune scans
           <span data-tex="0.02 \le c \le 50"></span> for the dip and refines it by bisection. Phase tune
           first does the diode tune, then picks the root that makes the phase output an extremum at

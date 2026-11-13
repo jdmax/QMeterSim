@@ -1,7 +1,8 @@
-"""Check that qmeter.py reproduces the notebook's update() exactly.
+"""Validation tests for the web app's Python. Run: python web/test_qmeter.py
 
 `notebook_update` below is the notebook code (qmeter_sim.ipynb) with plotting/printing removed and the
-notebook's global controls (sig, species, pol) passed as arguments. Run: python web/test_qmeter.py
+notebook's global controls (sig, species, pol) passed as arguments. qmeter.py corrects the notebook's cables,
+so the two are compared only with zero-length cables, where the cables drop out.
 """
 
 import itertools
@@ -97,25 +98,52 @@ def notebook_update(trim_sup, trim_sig, trim_ref, trim_coil, capacitance, phase,
     return f(points) / 1e6, v_phase, v_diode, c * 1e12, lb2
 
 
-def test_matches_notebook():
-    cases = [
-        dict(trim_sup=1e-9, trim_sig=1e-9, trim_ref=1e-9, trim_coil=1e-9, capacitance=1, phase=0, sweep_range=0.4),
-        dict(trim_sup=10., trim_sig=10., trim_ref=.5, trim_coil=1e-5, capacitance=1.0, phase=0, sweep_range=0.4),
-        dict(trim_sup=0.3, trim_sig=1.7, trim_ref=2.2, trim_coil=0.5, capacitance=0.97, phase=35, sweep_range=1.2),
-    ]
+def test_zero_length_matches_notebook():
+    """With zero-length cables the corrected model is the notebook's circuit, up to an overall scale: the
+    source now sees its matched 50 ohm loads (1/2 at the tank, 1/2 vs 2/3 at the mixer reference)."""
+    zero = dict(trim_sup=0.0, trim_sig=0.0, trim_ref=0.0, trim_coil=0.0)
     n = 0
-    for case, sig, species, pol_nb in itertools.product(cases, (True, False), ('p', 'd'), (-0.0027, 0.4)):
-        if species == 'd' and sig:
-            continue  # deuterons now use the Dulya lineshape, not the notebook's proton lineshape
-        f, ph, di, c_pf, lb2 = notebook_update(**case, sig=sig, species=species, pol=pol_nb)
-        # qmeter's pol has the physical sign: it is the negative of the notebook's
-        res = qmeter.simulate(**case, sig=sig, species=species, pol=-pol_nb)
+    for (cap, phase, sweep), sig, pol_nb in itertools.product(((1.0, 0, 0.4), (0.97, 35, 1.2), (1.05, -80, 0.6)),
+                                                              (True, False), (-0.0027, 0.4)):
+        case = dict(capacitance=cap, phase=phase, sweep_range=sweep)
+        f, ph, di, c_pf, lb2 = notebook_update(**{k: 1e-12 for k in zero}, **case, sig=sig, species='p', pol=pol_nb)
+        res = qmeter.simulate(**zero, **case, sig=sig, species='p', pol=-pol_nb)   # physical sign = -notebook's
         assert np.allclose(res['f_mhz'], f, rtol=1e-12, atol=0)
-        assert np.allclose(res['phase'], ph, rtol=1e-9, atol=1e-15), (case, sig, species)
-        assert np.allclose(res['diode'], di, rtol=1e-9, atol=1e-15), (case, sig, species)
+        assert np.allclose(res['diode'], di / 2, rtol=0, atol=1e-4 * di.max()), case
+        assert np.allclose(res['phase'], ph * 3 / 8, rtol=0, atol=1e-4 * abs(ph).max()), case
         assert np.isclose(res['c_pf'], c_pf) and np.isclose(res['lambda2_m'], lb2)
         n += 1
-    print(f"test_matches_notebook: {n} cases OK")
+    print(f"test_zero_length_matches_notebook: {n} cases OK")
+
+
+def _shape_change(a, b):
+    return np.max(abs(a / np.max(abs(a)) - b / np.max(abs(b))))
+
+
+def test_cables():
+    p = qmeter._params({})
+    z0 = np.sqrt(p['l_cab'] / p['c_per_m'])
+    assert 51 < z0 < 52.5   # per-metre constants: about 51.7 ohm, whatever the length
+    # matched supply and signal lines: lengths are not critical (Court et al. 2004, sec. 5.6). The diode curve
+    # keeps its shape; the phase signal keeps it up to the cable delay, a phase linear in frequency (about 0.4%
+    # per metre of cable for a short cable), which a reference cable of matching length removes.
+    for species in ('p', 'd'):
+        base = qmeter.simulate(species=species, sig=False)
+        m0 = qmeter._circuit(qmeter._params(dict(species=species, sig=False)), 2 * np.pi * base['f_mhz'] * 1e6)['v_mixer']
+        for k, t in itertools.product(('trim_sup', 'trim_sig'), (0.3, 1.7, 10.0)):
+            s = qmeter.simulate(species=species, sig=False, **{k: t})
+            assert _shape_change(s['diode'], base['diode']) < 0.005, (species, k, t)
+            m = qmeter._circuit(qmeter._params(dict(species=species, sig=False, **{k: t})),
+                                2 * np.pi * s['f_mhz'] * 1e6)['v_mixer']
+            rot = np.exp(1j * np.angle(np.vdot(m, m0)))
+            metres = t * s['lambda2_m']
+            assert _shape_change(np.real(m * rot), np.real(m0)) < 0.005 * metres + 0.005, (species, k, t)
+        # delay matched by the reference cable: the phase signal is back to the zero-length shape
+        s = qmeter.simulate(species=species, sig=False, trim_sup=3.0, trim_sig=4.0, trim_ref=7.0)
+        assert _shape_change(s['phase'], base['phase']) < 0.015, species
+    # a lambda/2 coil cable passes the coil impedance through, so the tank still tunes near capacitance 1
+    assert abs(qmeter.tune('diode', trim_coil=1.0)['capacitance'] - 1) < 0.05
+    print("test_cables: OK")
 
 
 def test_json_entry():
@@ -225,7 +253,8 @@ def test_tune():
 
 
 if __name__ == '__main__':
-    test_matches_notebook()
+    test_zero_length_matches_notebook()
+    test_cables()
     test_json_entry()
     test_tune()
     test_deuteron_lineshape()

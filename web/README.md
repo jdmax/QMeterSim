@@ -22,13 +22,32 @@ change cable lengths, tuning, phase, species, field and the circuit constants.
 Polarization here has its physical sign: positive is absorptive, as at thermal equilibrium. The notebook's `pol` is
 the negative of this, so its default of −0.0027 is +0.27%.
 
+### Differences from the notebook's cables
+
+The web app's transmission lines differ from the notebook's in three ways. With zero-length cables, the two
+models agree up to an overall scale.
+
+1. Each line's characteristic impedance uses the cable's capacitance per meter, so it is about 51.7 Ω whatever
+   the length. The notebook divides by the line's total capacitance, so its impedance changes with length (about
+   99 Ω at λ/4 for protons, 35 Ω at 2λ), and zero-length lines are singular.
+2. The source voltage is carried through the supply, signal and reference lines, each stage as a Thevenin
+   source. The notebook used the source voltage directly at the tank and at the mixer.
+3. The mixer output is Re(V<sub>rf</sub> V<sub>ref</sub><sup>*</sup>), the phase difference between its
+   inputs, rather than Re(V<sub>rf</sub> V<sub>ref</sub>). This way the reference cable's delay offsets the
+   supply and signal cables' delay.
+
+As a result, the supply and signal lines are matched (terminated in 50 Ω), and their lengths don't change the
+shape of the Q-curve, as described by Court *et al.* (NIM A 527 (2004), sec. 5.6). They only delay the signal,
+which the reference cable or the phase setting corrects.
+
 ## Files
 
-* `qmeter.py`: the notebook's circuit, vectorized with numpy (the notebook itself is unchanged), plus tuning
+* `qmeter.py`: the notebook's circuit, vectorized with numpy, with corrected cables (see below), plus tuning
 * `deuteron_lineshape.py`: the deuteron lineshape and susceptibility
 * `analysis.py`: baseline and polynomial subtraction, integration, TE calibration, deuteron lineshape fits
-* `test_qmeter.py`: checks `qmeter.py` against a verbatim copy of the notebook's `update()` code, and checks the
-  tuning, the deuteron lineshape and the analysis
+* `test_qmeter.py`: checks `qmeter.py` against a verbatim copy of the notebook's `update()` code with
+  zero-length cables, checks that matched cables don't change the Q-curve, and checks the tuning, the deuteron
+  lineshape and the analysis
 * `index.html`, `app.js`, `worker.js`, `style.css`: the page
 * `serve_web.py`: assembles the site in `_site/`
 
