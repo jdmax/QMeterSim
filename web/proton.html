@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Proton Line and Polarization</title>
-<meta name="description" content="How the proton NMR line of a polarized target shifts and sharpens as the polarization grows, positive and negative, with measured lines from a 5 T target and the model used in the Q-meter simulator.">
+<meta name="description" content="How the proton NMR line of a polarized target changes while the polarization moves: spin-ups, knock-downs and reversals of a 5 T target, and the model used in the Q-meter simulator.">
 <meta name="author" content="J. Maxwell">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,131 +17,136 @@
 <div class="wrap">
   <header>
     <p class="crumb"><a href="./">← Q-Meter Circuit Simulator</a></p>
-    <h1>The proton line at high polarization</h1>
+    <h1>The proton line while the polarization moves</h1>
     <p>A proton NMR line is not a fixed shape. As a target polarizes, the line moves away from where it sits at
-      zero polarization and sharpens on that side, while its area keeps tracking the polarization. This page
-      follows a 5 T target through two runs, a rise to 79% in October 2022 and a reversal from +69% to −60% in
-      July 2022, and shows the model of this behavior that the simulator uses.</p>
+      zero polarization and sharpens on that side, while its area keeps tracking the polarization. And when the
+      polarization moves quickly, the shape also depends on how it got there. This page follows a 5 T target
+      through eight such episodes in 2022, spin-ups, knock-downs and reversals, and shows the model of the line
+      that the simulator uses.</p>
   </header>
 
   <section class="panel" aria-labelledby="dataHead">
     <h2 id="dataHead">The data</h2>
-    <p>Proton event logs from a 5 T polarized target in 2022: 512-point sweeps of ±400 kHz about 212.882 MHz,
-      each event the average of 2000–4000 sweeps, baseline- and polynomial-subtracted as described on the
-      <a href="./">simulator page</a>.</p>
-    <ul class="plain">
-      <li><b>October, positive.</b> At 05:20 UTC on 9 October the polarization rose from near zero to 74% in
-        eleven minutes, crept up to 79% by 10:10, and then decayed to 74% by 18:10. Example lines: each of the
-        eight events of the fast rise, and four averages of the later events, binned by polarization.</li>
-      <li><b>July, a reversal.</b> From 01:50 UTC on 3 July the target held +69%. At 14:09 the microwave
-        frequency was moved from 140.12 to 140.46 GHz, to the other side of the electron line. The polarization
-        passed through zero 19 minutes later, reached −55% by about 21:00 and −60% by midday on 4 July, and
-        held there until 6 July. Example lines: the average of the +69% plateau, and averages of the build-up
-        binned by polarization, starting 1.4 hours after the zero crossing (the shaded band ends there). The
-        reversal itself is <a href="#revHead">below</a>.</li>
-    </ul>
-    <div class="stage" style="margin-top:14px">
-      <div class="card flat">
-        <div class="card-head"><h2>October</h2></div>
-        <div class="canvas-box mid"><canvas id="cvTimeO" aria-label="October run: polarization versus time, with the example lines marked"></canvas></div>
-        <div class="readline" id="rdTimeO" aria-live="off"></div>
-      </div>
+    <p>Proton event logs from three runs of a 5 T polarized target: 512-point sweeps of ±400 kHz about
+      212.882 MHz, each event the average of 1000–4000 sweeps taken in 20 to 80 seconds, baseline- and
+      polynomial-subtracted as described on the <a href="./">simulator page</a>. Most of each run is a plateau.
+      The eight shaded episodes are where the polarization moves; pick one in the table to follow it through
+      the page.</p>
+    <div class="stage trio">
       <div class="card flat">
         <div class="card-head"><h2>July</h2></div>
-        <div class="canvas-box mid"><canvas id="cvTimeJ" aria-label="July run: polarization versus time through the reversal, with the example lines marked"></canvas></div>
-        <div class="readline" id="rdTimeJ" aria-live="off"></div>
+        <div class="canvas-box mid"><canvas id="cvTime_jul" aria-label="July run: polarization versus time, with the episodes shaded"></canvas></div>
+        <div class="readline" id="rdTime_jul" aria-live="off"></div>
+      </div>
+      <div class="card flat">
+        <div class="card-head"><h2>September</h2></div>
+        <div class="canvas-box mid"><canvas id="cvTime_sep" aria-label="September run: polarization versus time, with the episodes shaded"></canvas></div>
+        <div class="readline" id="rdTime_sep" aria-live="off"></div>
+      </div>
+      <div class="card flat">
+        <div class="card-head"><h2>October</h2></div>
+        <div class="canvas-box mid"><canvas id="cvTime_oct" aria-label="October run: polarization versus time, with the episode shaded"></canvas></div>
+        <div class="readline" id="rdTime_oct" aria-live="off"></div>
       </div>
     </div>
-    <div class="legend-line" id="timeLegend"></div>
+    <div class="legend-line" id="kindLegend"></div>
+    <div class="tablewrap">
+      <table class="eptable" id="epTable" aria-label="The eight episodes">
+        <thead><tr><th scope="col">#</th><th scope="col">Start (UTC)</th><th scope="col">Episode</th>
+          <th scope="col">Polarization</th><th scope="col" title="Time taken by the middle 80% of the change in polarization">Middle 80% of the change</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </section>
 
   <section class="panel" aria-labelledby="linesHead">
-    <h2 id="linesHead">The line as the target polarizes</h2>
-    <p>Each line is the fit-subtracted signal, with its sign flipped so absorption is positive; at negative
-      polarization the target emits, and the line as measured is negative. Each run's lines are drawn from that
-      run's <span data-tex="P = 0"></span> line center, which was 10.5 kHz lower in July. Shown with equal
-      areas, positive lines move up and narrow from the high-frequency side. Negative lines move down and
-      sharpen on the low-frequency side: close to a mirror image, but not exact. Hover to pick out a line.</p>
+    <h2 id="linesHead">The line through an episode</h2>
+    <p>About a dozen single events from the chosen episode, spread evenly along the path the polarization takes.
+      Each is the fit-subtracted signal with its sign flipped so absorption is positive; at negative
+      polarization the target emits, and the line as measured is negative. Offsets are from the run's
+      <span data-tex="P = 0"></span> line center. With equal areas the change in shape is plain; lines too small
+      to scale, or with both signs, are left out of that view. Hover to pick out a line.</p>
     <div class="controls inset" role="group" aria-label="Line display">
+      <div class="ctl"><span class="eyebrow">Episode</span>
+        <div class="seg" id="epSeg"></div></div>
       <div class="ctl"><span class="eyebrow">Show</span>
         <div class="seg" id="normSeg">
           <button type="button" data-v="area" aria-pressed="true">Equal areas</button>
           <button type="button" data-v="raw" aria-pressed="false">As measured</button>
         </div></div>
     </div>
+    <p class="after-eq" id="epCaption"></p>
     <div class="stage one">
       <div class="card flat">
-        <div class="canvas-box"><canvas id="cvLines" aria-label="Measured proton lines at polarizations from minus 60 to plus 79 percent"></canvas></div>
+        <div class="canvas-box"><canvas id="cvLines" aria-label="Measured proton lines of the chosen episode"></canvas></div>
         <div class="legend-line" id="rampLegend"></div>
         <div class="readline" id="rdLines" aria-live="off"></div>
       </div>
     </div>
   </section>
 
-  <section class="panel" aria-labelledby="revHead">
-    <h2 id="revHead">During the reversal</h2>
-    <p>For about 45 minutes after the microwaves moved, the line is not a function of the polarization. It has
-      both signs at once: its low-frequency side turns negative where the −60% line will peak, while the
-      high-frequency peak of the +69% line is still positive, and the logged polarization, the net area, says
-      little about the shape. Each of these lines is close to a sum of the two end lines, within about 15% of
-      its peak, as if parts of the sample reversed before others. A line of both signs cannot come from a single
-      spin temperature, so the model leaves these lines out. It also leaves out the rest of the 1.4 hours after
-      the zero crossing, while the line went on settling: its center of area moved up as the polarization built
-      up more negative, the wrong way for a line that depends on <span data-tex="P"></span> alone.</p>
-    <div class="stage one">
-      <div class="card flat">
-        <div class="canvas-box"><canvas id="cvRev" aria-label="Single events during the reversal, as measured, with the plus 69 and minus 60 percent lines for reference"></canvas></div>
-        <div class="legend-line" id="revLegend"></div>
-        <div class="readline" id="rdRev" aria-live="off"></div>
-      </div>
-    </div>
-  </section>
-
   <section class="panel" aria-labelledby="changeHead">
-    <h2 id="changeHead">What changes</h2>
-    <p>Measured from each settled line: where its center of area and its peak sit, how far it extends on each
-      side of the peak at half height, and how tall it is for its area. Points are blue for positive and orange
-      for negative polarization. The dashed curves are the model below; between −38% and +24% there are no
-      settled lines, and the model interpolates.</p>
-    <div class="stage trio">
+    <h2 id="changeHead">What changes, and how it depends on the path</h2>
+    <p>Every event of every episode, measured the same way: where the line's center of area sits, how far it
+      extends on each side of the peak at half height, and how tall it is for its area. Each episode is a path
+      across the plot; rises run left to right, knock-downs and reversals right to left. The episode chosen
+      above is drawn heavier. If the line depended only on the polarization, all the paths would lie on one
+      curve. The dashed curve is the model below.</p>
+    <div class="stage">
       <div class="card flat">
-        <div class="card-head"><h2>Position</h2></div>
-        <div class="canvas-box"><canvas id="cvShift" aria-label="Line centroid and peak offset versus polarization"></canvas></div>
-        <div class="legend-line">
-          <span><i class="sw dot-m" style="color:var(--ink-2)"></i><span>center of area</span></span>
-          <span><i class="sw ring"></i><span>peak</span></span>
-          <span style="color:var(--muted)"><i class="sw dash"></i><span>model</span></span>
-        </div>
-        <div class="readline" id="rdShift" aria-live="off"></div>
-      </div>
-      <div class="card flat">
-        <div class="card-head"><h2>Half width at half height</h2></div>
-        <div class="canvas-box"><canvas id="cvWidth" aria-label="Half widths below and above the peak versus polarization"></canvas></div>
-        <div class="legend-line">
-          <span><i class="sw dot-m" style="color:var(--ink-2)"></i><span>below the peak</span></span>
-          <span><i class="sw ring"></i><span>above the peak</span></span>
-          <span style="color:var(--muted)"><i class="sw dash"></i><span>model</span></span>
-        </div>
-        <div class="readline" id="rdWidth" aria-live="off"></div>
+        <div class="card-head"><h2>Center of area</h2></div>
+        <div class="canvas-box mid"><canvas id="cvC" aria-label="Center of area versus polarization for each episode"></canvas></div>
+        <div class="readline" id="rdC" aria-live="off"></div>
       </div>
       <div class="card flat">
         <div class="card-head"><h2>Peak height for the area</h2></div>
-        <div class="canvas-box"><canvas id="cvPeak" aria-label="Peak height divided by area, relative to the model line at zero polarization"></canvas></div>
-        <div class="legend-line">
-          <span><i class="sw dot-m" style="color:var(--ink-2)"></i><span>relative to the model at P = 0</span></span>
-          <span style="color:var(--muted)"><i class="sw dash"></i><span>model</span></span>
-        </div>
-        <div class="readline" id="rdPeak" aria-live="off"></div>
+        <div class="canvas-box mid"><canvas id="cvPk" aria-label="Peak height divided by area versus polarization for each episode"></canvas></div>
+        <div class="readline" id="rdPk" aria-live="off"></div>
+      </div>
+      <div class="card flat">
+        <div class="card-head"><h2>Half width below the peak</h2></div>
+        <div class="canvas-box mid"><canvas id="cvLo" aria-label="Half width at half height below the peak versus polarization for each episode"></canvas></div>
+        <div class="readline" id="rdLo" aria-live="off"></div>
+      </div>
+      <div class="card flat">
+        <div class="card-head"><h2>Half width above the peak</h2></div>
+        <div class="canvas-box mid"><canvas id="cvHi" aria-label="Half width at half height above the peak versus polarization for each episode"></canvas></div>
+        <div class="readline" id="rdHi" aria-live="off"></div>
       </div>
     </div>
+    <div class="legend-line" id="trajLegend"></div>
     <ul class="findings" id="findings"></ul>
   </section>
 
+  <section class="panel" aria-labelledby="revHead">
+    <h2 id="revHead">Through zero</h2>
+    <p>The two reversals pass through zero differently. In July the line has both signs at once for about 40
+      minutes: its low-frequency side turns negative where the negative line will peak, while the
+      high-frequency peak of the positive line still stands, and the logged polarization, the net area, says
+      little about the shape. In September the microwaves drive the polarization through zero in 8 minutes, and
+      the line keeps one sign almost throughout: the positive line stretches a long low-frequency tail as it
+      shrinks, and only the sweep nearest zero shows both signs.</p>
+    <div class="stage">
+      <div class="card flat">
+        <div class="card-head"><h2>July reversal, as measured</h2></div>
+        <div class="canvas-box"><canvas id="cvRev_jul" aria-label="Single events through the July reversal, as measured"></canvas></div>
+        <div class="readline" id="rdRev_jul" aria-live="off"></div>
+      </div>
+      <div class="card flat">
+        <div class="card-head"><h2>September reversal, as measured</h2></div>
+        <div class="canvas-box"><canvas id="cvRev_sep" aria-label="Single events through the September reversal, as measured"></canvas></div>
+        <div class="readline" id="rdRev_sep" aria-live="off"></div>
+      </div>
+    </div>
+    <div class="legend-line" id="revLegend"></div>
+  </section>
+
   <section class="panel" aria-labelledby="whyHead">
-    <h2 id="whyHead">Why the line moves</h2>
+    <h2 id="whyHead">Why the line moves, and why the path matters</h2>
     <p>A polarized sample is magnetized, <span data-tex="M = n\,\mu_p P"></span> for
       <span data-tex="n"></span> protons per unit volume, and each proton sees the applied field plus the field
-      of all the others. Two effects follow, and both grow with <span data-tex="P"></span>.</p>
+      of all the others. Two effects follow, and both grow with <span data-tex="P"></span>. A third comes from
+      the sample not being polarized evenly.</p>
     <div class="eqgrid">
       <div class="eqcard">
         <h3>The sample's own field</h3>
@@ -163,30 +168,42 @@
           <span data-tex="P"></span> (Goldman; Abragam &amp; Goldman), and is why the line sharpens on one
           side. Negative polarization is a negative spin temperature, and reverses both.</p>
       </div>
+      <div class="eqcard">
+        <h3>An unevenly polarized sample</h3>
+        <div class="eq" data-tex="S(x) \propto \int P(\mathbf r)\; g\big(x;\,P(\mathbf r)\big)\,d^3r"></div>
+        <p>The coil sees the whole sample, and the measured line is the sum of the lines of all its parts, each
+          at its own polarization. When the microwaves drive the polarization quickly, some parts lead and
+          others lag. The sum is then broader than the line of an evenly polarized sample with the same area,
+          with extra weight on the side toward zero polarization. Nuclear spin diffusion is far
+          too slow to even this out across millimetres, so the shape stays after the microwaves go off.</p>
+      </div>
     </div>
-    <p class="after-eq">This picture expects the negative line to be the mirror image of the positive one. The
-      July line is close to it, but at the same size of polarization it moves about half as far from the center
-      and stays broader. The October and July lines at +69% have the same shape, so the difference comes with
-      the sign of the polarization, not with the run. This page does not explain it; the model fits each sign
-      on its own.</p>
+    <p class="after-eq" id="mixText"></p>
+    <p class="after-eq">The first two effects expect the negative line to be the mirror image of the positive
+      one, and it nearly is: it moves about as far from the center and its sharp edge is as sharp. Its tail is
+      longer. Every negative line here follows a reversal, so some of that may be the same unevenness; these
+      data cannot say.</p>
   </section>
 
   <section class="panel" aria-labelledby="modelHead">
     <h2 id="modelHead">The model in the simulator</h2>
-    <p>The simulator fits all <span id="nFit">20</span> settled lines with a shift and a linear change of shape
+    <p>The simulator needs one line for each polarization, so it uses the lines taken while the size of the
+      polarization was growing: the rises, the build-up after each reversal, and the plateau before each
+      reversal, <span id="nFit">69</span> lines in all. It fits them with a shift and a linear change of shape
       for each sign of the polarization:</p>
     <div class="eq" data-tex="g(x;P) = A_0(u) + P\,A_\pm(u), \qquad u = x - s_\pm P, \qquad \int A_\pm\,dx = 0"></div>
     <p class="after-eq">with <span data-tex="x"></span> the offset from the line center at
       <span data-tex="P = 0"></span>; <span data-tex="A_+"></span> and <span data-tex="s_+"></span>
-      (<span id="sPos">24.6</span> kHz) for positive <span data-tex="P"></span>, and
-      <span data-tex="A_-"></span> and <span data-tex="s_-"></span> (<span id="sNeg">13.5</span> kHz) for
+      (<span id="sPos">18.6</span> kHz) for positive <span data-tex="P"></span>, and
+      <span data-tex="A_-"></span> and <span data-tex="s_-"></span> (<span id="sNeg">16.1</span> kHz) for
       negative. <span data-tex="A_0"></span>, the line at <span data-tex="P = 0"></span>, is shared, so the
-      shape is continuous through zero. The model reproduces every settled line within
-      <span id="maxErr">4%</span> of its peak. Nothing forces <span data-tex="A_0"></span> to be symmetric, but
-      it nearly is. Between −38% and +24% the shape is interpolated. Beyond the measured range,
-      <span id="rangeText">−60% to 79%</span>, it is held, and only the shift and the size follow
-      <span data-tex="P"></span>. The dispersion that goes with each line is its exact Kramers–Kronig partner,
-      and the area is independent of <span data-tex="P"></span>, so a TE calibration still holds.</p>
+      shape is continuous through zero. <span id="errText"></span> Lines from knock-downs, from the passage
+      through zero, and from the start of a build-up that follows either (below
+      <span id="settleText">30%</span>) are not fitted, because they are not the line of an evenly polarized
+      sample. Beyond the measured range, <span id="rangeText">−73% to 78%</span>, the shape is held, and only
+      the shift and the size follow <span data-tex="P"></span>. The dispersion that goes with each line is its
+      exact Kramers–Kronig partner, and the area is independent of <span data-tex="P"></span>, so a TE
+      calibration still holds.</p>
     <div class="controls inset" role="group" aria-label="Model polarization">
       <div class="ctl wide"><label class="eyebrow" for="pSlider">Polarization</label>
         <div class="row">
@@ -222,25 +239,26 @@
     <h2 id="measHead">What it means for measuring polarization</h2>
     <ul class="plain">
       <li><b>Integrate, don't read the peak.</b> Polarization is proportional to the area of the line, and that
-        is what a TE calibration transfers. The peak height is not: for the same area the peak is about a fifth
-        taller at 79% than at 24% as the line narrows, and a negative line is lower than a positive one of the
-        same size. A peak-height estimate scaled from a low-polarization line reads high at high positive
-        polarization.</li>
-      <li><b>Leave room for the shift.</b> Between TE and 79% the center of the line moves up by about 19 kHz
-        and its peak by about 31 kHz; at −60% they move down by about 8 and 16 kHz. The integration range and
+        is what a TE calibration transfers. The peak height is not: for the same area the peak is about a
+        seventh taller at 78% than near zero, a negative line gains almost nothing, and a line taken just after
+        a knock-down is lower still.</li>
+      <li><b>Leave room for the shift.</b> Between TE and 78% the center of the line moves up by about 15 kHz
+        and its peak by about 25 kHz; at −73% they move down by about 12 and 24 kHz. The integration range and
         the polynomial-fit wings need margin on the side the line moves to.</li>
       <li><b>Asymmetry is not a phase error.</b> A phase error mixes in the dispersion, which is antisymmetric:
         it pushes the line up on one side and below zero on the other. The polarization asymmetry keeps a
         settled line one sign everywhere. Lines that sharpen on one side as the target polarizes are
         expected.</li>
-      <li><b>Don't trust the shape during a reversal.</b> While the polarization reverses, the line can have
-        both signs at once. Its area is still the polarization, but a lineshape fit or a peak height is not.</li>
+      <li><b>A moving polarization leaves its mark on the shape.</b> A line taken during or just after a fast
+        change is not the line of a settled target at that polarization. Its area is still the polarization,
+        but a lineshape fit or a peak height calibrated on settled lines is not. Through a reversal the line
+        can have both signs at once.</li>
       <li><b>Expect more distortion from the Q-meter.</b> A narrower line is taller for the same area, so at
         high polarization the Q-meter's nonlinear response distorts it a little more than a fixed-shape model
         would suggest.</li>
     </ul>
-    <p class="after-eq">Try it in the simulator at <a href="./?species=p&amp;pol=0.79">+79%</a> or
-      <a href="./?species=p&amp;pol=-0.6">−60%</a>: change the polarization, and watch the fit-subtracted line
+    <p class="after-eq">Try it in the simulator at <a href="./?species=p&amp;pol=0.78">+78%</a> or
+      <a href="./?species=p&amp;pol=-0.73">−73%</a>: change the polarization, and watch the fit-subtracted line
       move and sharpen.</p>
   </section>
 

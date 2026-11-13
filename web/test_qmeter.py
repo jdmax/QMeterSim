@@ -170,12 +170,12 @@ def test_proton_lineshape():
         i0 = np.argmax(ab)
         half = np.nonzero(ab > 0.5)[0]
         shape[pol] = (1e3 * (f[i0] - f[half[0]]), 1e3 * (f[half[-1]] - f[i0]), np.sum(ab * x) / np.sum(ab))
-    # measured behavior: the centroid moves up ~25 kHz per unit P for P > 0 and down ~13 kHz for P < 0; at
-    # +79% the line is ~37 kHz wide with a sharp high-frequency edge; near P = 0 it is nearly symmetric and
-    # broader; at -60% the sharp edge is on the low-frequency side and the line is broader than at +60%
+    # measured behavior: the centroid moves ~17 kHz per unit P, up for P > 0 and down for P < 0; at +79% the
+    # line is ~38 kHz wide with a sharp high-frequency edge; near P = 0 it is nearly symmetric and broader; at
+    # -60% the sharp edge is on the low-frequency side and the line is broader than at +60%
     for pol, (lo, hi, c) in shape.items():
         assert abs(c - pl.shift_khz(pol)) < 1.5, (pol, c)
-    assert 20 < pl.SHIFT_POS_KHZ < 30 and 8 < pl.SHIFT_NEG_KHZ < 18
+    assert 12 < pl.SHIFT_POS_KHZ < 25 and 12 < pl.SHIFT_NEG_KHZ < 25
     lo, hi, _ = shape[0.79]
     assert 30 < lo + hi < 40 and lo > 1.4 * hi
     lo, hi, _ = shape[0.005]

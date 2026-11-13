@@ -7,11 +7,13 @@ change cable lengths, tuning, phase, species, field and the circuit constants.
 
 - **Tune** buttons on the diode and phase plots set the capacitance (and, for the phase signal, the phase) that center
   the curve on the Larmor frequency for the current cable lengths.
-- **Proton signal:** fitted to measured 5 T proton lines at polarizations from −60% to −38% and from 24% to 79%.
-  Near P = 0 the line is nearly symmetric and about 52 kHz wide. For positive P it shifts up (24.6 kHz per unit
-  P) and sharpens on its high-frequency side, to 37 kHz wide with a long low-frequency tail at 79%. For negative
-  P it shifts down by only 13.5 kHz per unit P and sharpens on its low-frequency side, to 46 kHz wide at −60%.
-  Beyond the measured range the shape is held, and only the shift and size follow P. Its dispersion is
+- **Proton signal:** fitted to measured 5 T proton lines taken while the polarization was growing: spin-ups from
+  7% to 78% and the build-up after two reversals from −31% to −73%. Near P = 0 the line is nearly symmetric and
+  about 46 kHz wide. For positive P it shifts up (18.6 kHz per unit P) and sharpens on its high-frequency side,
+  to 38 kHz wide with a long low-frequency tail at 78%. For negative P it shifts down (16.1 kHz per unit P) and
+  sharpens on its low-frequency side, nearly the mirror image with a longer tail: 44 kHz wide at −73%. Beyond
+  the measured range the shape is held, and only the shift and size follow P. A real line also depends on how
+  fast the polarization is changing, which the model leaves out. Its dispersion is
   computed exactly from it, and its size follows Seely's susceptibility with the notebook's Hill & Hill
   normalization. This replaces the notebook's analytic lineshape, whose complex power below resonance made the
   line lopsided the wrong way and its dispersion unphysical.
@@ -59,8 +61,8 @@ which the reference cable or the phase setting corrects.
   zero-length cables, checks that matched cables don't change the Q-curve, and checks the tuning, the deuteron
   lineshape and the analysis
 * `index.html`, `app.js`, `worker.js`, `style.css`: the page
-* `proton.html`, `proton.js`, `proton_data.json`: a second page on how the proton line changes with polarization,
-  with measured example lines
+* `proton.html`, `proton.js`, `proton_data.json`: a second page on how the proton line changes while the
+  polarization moves, with measured lines from spin-ups, knock-downs and reversals
 * `tools/make_proton_data.py`: builds `proton_lineshape.py` and `proton_data.json` from NMR event logs (the logs
   themselves are not in the repository; by default it reads the git-ignored `temp/`)
 * `serve_web.py`: assembles the site in `_site/`

@@ -18,6 +18,7 @@
   --track: #e3e8ed;
   --canvas-bg: #f7f9fa;
   --shell: #2a78d6;
+  --k-rise: #1baf7a; --k-fall: #6250d6; --k-rev: #eda100;
   --fitc: #148a5e;
   --f-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
   --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -28,14 +29,14 @@
     --bg: #0e141a; --panel: #161f28; --ink: #e5ebf0; --ink-2: #b0bcc7; --muted: #7d8a97;
     --line: #283440; --copper: #e5834a; --copper-soft: #3a2518; --ok: #5cc794; --ok-soft: #173326;
     --warn: #e2a93f; --warn-soft: #382b12; --bad: #f0786a; --bad-soft: #3c1d19;
-    --track: #24303b; --canvas-bg: #111a22; --shell: #4d95ea; --fitc: #3dbd8a; color-scheme: dark;
+    --track: #24303b; --canvas-bg: #111a22; --shell: #4d95ea; --fitc: #3dbd8a; --k-rise: #199e70; --k-fall: #9085e9; --k-rev: #c98500; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0e141a; --panel: #161f28; --ink: #e5ebf0; --ink-2: #b0bcc7; --muted: #7d8a97;
   --line: #283440; --copper: #e5834a; --copper-soft: #3a2518; --ok: #5cc794; --ok-soft: #173326;
   --warn: #e2a93f; --warn-soft: #382b12; --bad: #f0786a; --bad-soft: #3c1d19;
-  --track: #24303b; --canvas-bg: #111a22; --shell: #4d95ea; --fitc: #3dbd8a; color-scheme: dark;
+  --track: #24303b; --canvas-bg: #111a22; --shell: #4d95ea; --fitc: #3dbd8a; --k-rise: #199e70; --k-fall: #9085e9; --k-rev: #c98500; color-scheme: dark;
 }
 * { box-sizing: border-box; }
 body {
@@ -225,7 +226,19 @@ a:hover { color: var(--ink); }
 .legend-line .group { display: inline-flex; align-items: center; gap: 6px; }
 .sw.dot-m { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 .sw.ring { width: 9px; height: 9px; border-radius: 50%; background: none; border: 2px solid var(--ink-2); box-sizing: border-box; }
-.sw.band { width: 14px; height: 10px; background: var(--muted); opacity: 0.25; }
+.sw.band { width: 14px; height: 10px; opacity: 0.3; }
+.sw.line { height: 3px; border-radius: 1px; background: currentColor; }
+.tablewrap { overflow-x: auto; margin-top: 14px; }
+.eptable { border-collapse: collapse; width: 100%; font-size: 0.86rem; color: var(--ink-2); }
+.eptable th { text-align: left; font: 500 0.72rem var(--f-display); text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); padding: 4px 10px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.eptable td { padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.eptable td.num, .eptable td.when { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.eptable tbody tr { cursor: pointer; }
+.eptable tbody tr:hover td { background: var(--canvas-bg); }
+.eptable tbody tr[aria-selected="true"] td { background: var(--copper-soft); color: var(--ink); }
+.eptable .epbtn { font: 600 0.86rem var(--f-mono); width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid currentColor; background: transparent; cursor: pointer; padding: 0; }
+.eptable .what { display: block; color: var(--muted); font-size: 0.8rem; }
+.eptable .kind { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; }
 .findings, ul.plain { margin: 14px 0 0; padding-left: 18px; color: var(--ink-2); max-width: 95ch; display: grid; gap: 6px; }
 ul.plain { margin-top: 0; }
 .after-eq { margin: 8px 0 12px; color: var(--ink-2); max-width: 90ch; }
