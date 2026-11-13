@@ -199,8 +199,11 @@ def simulate(**kwargs):
 #     d|V_rf|/dw = 0 at w0, with |V_rf| a minimum there.
 # Phase tune: diode-tune the capacitance, then choose the phase so the baseline phase output is symmetric
 #     (an extremum) at w0. With Z = V_rf V_ref, the output is -Re(Z e^{i phi}), so its slope -Re(Z' e^{i phi})
-#     vanishes for phi = +-pi/2 - arg Z'(w0). Of the two roots, take the one whose curvature matches the
-#     ideal zero-length circuit at phase 0, so a tuned curve always has the same orientation.
+#     vanishes for phi = +-pi/2 - arg Z'(w0). Of the two roots, take the one for which an absorptive signal
+#     (extra coil resistance) has the same sign as in the ideal zero-length circuit at phase 0, so the NMR
+#     signal always points the same way. (The baseline's curvature is not a safe guide: when the reference
+#     cable's delay doesn't match the supply and signal cables' delay, the root that keeps the baseline a peak
+#     inverts the signal.)
 # Tuning is done on the baseline (polarization signal off) and leaves cable lengths untouched.
 # ---------------------------------------------------------------------------------------------------------
 
@@ -252,13 +255,20 @@ def _mixer_derivs(p, w0, h):
     return (z[2] - z[0]) / (2 * h), (z[2] - 2 * z[1] + z[0]) / h ** 2
 
 
-def _ideal_curvature_sign(p):
-    """Sign of d2(phase output)/dw2 at w0 for the zero-length circuit at capacitance 1, phase 0."""
-    ideal = {**p, 'capacitance': 1.0, 'phase': 0.0, 'sig': False,
-             'trim_sup': 0.0, 'trim_sig': 0.0, 'trim_ref': 0.0, 'trim_coil': 0.0}
-    w0 = 2 * np.pi * larmor_mhz(p) * 1e6
-    _, d2 = _mixer_derivs(ideal, w0, _REL_H * w0)
-    return np.sign(-np.real(d2)) or 1.0
+def _absorption_response(p, w0):
+    """Change in the mixer output (phase 0) at w0 for a small absorptive signal: extra coil resistance, which
+    is what chi'' adds, since i w L0 (1 - i 4 pi eta chi'') = i w L0 + w L0 4 pi eta chi''."""
+    q = {**p, 'phase': 0.0, 'sig': False}
+    dr = 1e-4 * (abs(q['r_coil']) + abs(q['r'])) + 1e-9
+    z0 = _circuit(q, np.array([w0]))['v_mixer'][0]
+    z1 = _circuit({**q, 'r_coil': q['r_coil'] + dr}, np.array([w0]))['v_mixer'][0]
+    return z1 - z0
+
+
+def _ideal_signal_sign(p):
+    """Sign of the phase output's response to absorption for the zero-length circuit at capacitance 1, phase 0."""
+    ideal = {**p, 'capacitance': 1.0, 'trim_sup': 0.0, 'trim_sig': 0.0, 'trim_ref': 0.0, 'trim_coil': 0.0}
+    return np.sign(-np.real(_absorption_response(ideal, 2 * np.pi * larmor_mhz(p) * 1e6))) or 1.0
 
 
 def tune(mode='phase', **kwargs):
@@ -277,14 +287,14 @@ def tune(mode='phase', **kwargs):
 
     p = {**p, 'capacitance': cap}
     w0 = 2 * np.pi * larmor_mhz(p) * 1e6
-    d1, d2 = _mixer_derivs(p, w0, _REL_H * w0)
-    want = _ideal_curvature_sign(p)
+    d1, _ = _mixer_derivs(p, w0, _REL_H * w0)
+    want = _ideal_signal_sign(p)
+    resp = _absorption_response(p, w0)
     best = None
     for phi in (np.pi / 2 - np.angle(d1), -np.pi / 2 - np.angle(d1)):
-        curv = -np.real(d2 * np.exp(1j * phi))
-        if np.sign(curv) == want:
+        if np.sign(-np.real(resp * np.exp(1j * phi))) == want:
             best = phi
-    if best is None:  # degenerate curvature; fall back to the first root
+    if best is None:  # degenerate; fall back to the first root
         best = np.pi / 2 - np.angle(d1)
     deg = (np.degrees(best) + 180.0) % 360.0 - 180.0
     out['phase'] = float(deg)

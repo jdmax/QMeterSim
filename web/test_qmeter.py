@@ -229,7 +229,8 @@ def test_tune():
 
     cases = [dict(trim_coil=1), dict(trim_sup=1, trim_sig=1, trim_ref=0.3, trim_coil=1),
              dict(trim_sup=10., trim_sig=10., trim_ref=.5, trim_coil=1e-5),
-             dict(species='d', trim_coil=1, trim_sig=2.3)]
+             dict(species='d', trim_coil=1, trim_sig=2.3), dict(species='d', trim_ref=1.19),
+             dict(trim_ref=0.7), dict(species='d', trim_sup=0.4, trim_ref=2.6, trim_coil=1)]
     for case in cases:
         rd = qmeter.tune('diode', **case, phase=17.0)
         assert rd['phase'] == 17.0, "diode tune must leave phase alone"
@@ -238,9 +239,12 @@ def test_tune():
         s = qmeter.simulate(**case, **r, sig=False, n_steps=8001)
         assert abs(_extremum_offset_khz(s['f_mhz'], s['diode'], s['f0_mhz'])) < 0.5, case
         assert abs(_extremum_offset_khz(s['f_mhz'], s['phase'], s['f0_mhz'])) < 0.5, case
-        # tuned phase output has the same orientation as the ideal zero-length circuit at phase 0 (a peak)
-        i0 = np.argmin(abs(s['f_mhz'] - s['f0_mhz']))
-        assert s['phase'][i0] > s['phase'][0] and s['phase'][i0] > s['phase'][-1], case
+        # an absorptive (positive) polarization signal points the same way as in the ideal zero-length circuit,
+        # a dip (the curvature of the baseline itself can flip when the reference delay isn't balanced)
+        on = qmeter.simulate(**case, **r, sig=True, pol=0.3, n_steps=2001)
+        off = qmeter.simulate(**case, **r, sig=False, n_steps=2001)
+        d = on['phase'] - off['phase']
+        assert d[np.argmax(abs(d))] < 0, case
 
     # quarter-wave coil cable: the coil looks capacitive and the series tank cannot be tuned
     try:

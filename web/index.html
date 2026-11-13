@@ -342,8 +342,10 @@
         <div class="eq" data-tex="\text{Phase: } \phi = \pm\frac{\pi}{2} - \arg\left.\frac{\partial\,(V_\text{rf}V_\text{ref}^{*})}{\partial\omega}\right|_{\omega_0}"></div>
         <p>Both use the baseline (signal off) and leave cable lengths alone. Diode tune scans
           <span data-tex="0.02 \le c \le 50"></span> for the dip and refines it by bisection. Phase tune
-          first does the diode tune, then picks the root that makes the phase output an extremum at
-          <span data-tex="\omega_0"></span> with the same orientation as the ideal zero-length circuit.</p>
+          first does the diode tune. Both roots make the phase output an extremum at
+          <span data-tex="\omega_0"></span>; it picks the one for which an absorptive signal points the same
+          way as in the ideal zero-length circuit. When the reference cable's delay doesn't match the supply and
+          signal cables', the baseline at that phase can be a dip rather than a peak.</p>
       </div>
     </div>
   </details>
