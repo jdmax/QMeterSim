@@ -295,8 +295,9 @@ function messageCanvas(id, text) {
   delete plots[id];
 }
 
-// series: [{y, x?, color, width, dash, label}]; bands: [{x0, x1, color}]; points: [{x, y, color}]
-function drawPlot(id, x, series, { marker = null, readEl = null, unit = "V", bands = [], points = [] } = {}) {
+// series: [{y, x?, color, width, dash, label}]; bands: [{x0, x1, color}]; points: [{x, y, color}];
+// segs: [{x0, y0, x1, y1, color, width, dash}] (annotation lines, not used for the y range)
+function drawPlot(id, x, series, { marker = null, readEl = null, unit = "V", bands = [], points = [], segs = [] } = {}) {
   const cv = $(id);
   const { ctx, W, H } = setupCanvas(cv);
   const m = { l: 62, r: 14, t: 22, b: 36 };
@@ -383,10 +384,14 @@ function drawPlot(id, x, series, { marker = null, readEl = null, unit = "V", ban
     }
     ctx.stroke();
   }
+  for (const g of segs) {
+    ctx.strokeStyle = g.color; ctx.lineWidth = g.width || 1.5; ctx.setLineDash(g.dash || []);
+    ctx.beginPath(); ctx.moveTo(X(g.x0), Y(g.y0)); ctx.lineTo(X(g.x1), Y(g.y1)); ctx.stroke();
+  }
   ctx.setLineDash([]);
   for (const p of points) {
     ctx.fillStyle = p.color; ctx.strokeStyle = css("--canvas-bg"); ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), 4.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), p.r || 4.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
   }
 
   // crosshair
@@ -455,17 +460,28 @@ function renderAnalysis() {
   ], { marker: a.f0_mhz, readEl: "rdBase", bands: wings });
 
   const series = [{ y: sw.sub, color: css("--copper"), width: 2, label: "fit-subtracted" }];
-  const points = [];
+  const points = [], segs = [];
+  const rt = a.ratio;
   if (a.species === "d" && anView === "en") {
     if (a.fit) series.push({ y: a.fit.curve, color: css("--fitc"), width: 1.6, dash: [6, 4], label: "absorption fit" });
     if (a.fit_complex) series.push({ y: a.fit_complex.curve, color: css("--shell"), width: 1.6, dash: [2, 3], label: "complex fit" });
-    if (a.ratio) {
-      points.push({ x: a.ratio.f_hi, y: a.ratio.h_hi, color: css("--ink") });
-      points.push({ x: a.ratio.f_lo, y: a.ratio.h_lo, color: css("--ink") });
+    if (rt) {
+      points.push({ x: rt.f_hi, y: rt.h_hi, color: css("--ink") });
+      points.push({ x: rt.f_lo, y: rt.h_lo, color: css("--ink") });
+      if (rt.pedestal) {
+        // the pedestal level, carried in from where it's read to under the peak, and the height above it
+        const ink = css("--ink");
+        for (const [fp, yp, fk, yk] of [[rt.f_ped_lo, rt.ped_lo, rt.f_lo, rt.h_lo], [rt.f_ped_hi, rt.ped_hi, rt.f_hi, rt.h_hi]]) {
+          segs.push({ x0: fp, y0: yp, x1: fk, y1: yp, color: ink, width: 1.4, dash: [4, 3] });
+          segs.push({ x0: fk, y0: yp, x1: fk, y1: yk, color: ink, width: 1.6 });
+          points.push({ x: fp, y: yp, color: ink, r: 3 });
+        }
+      }
     }
   }
-  drawPlot("cvSub", f, series, { marker: a.f0_mhz, readEl: "rdSub", bands: sum, points });
+  drawPlot("cvSub", f, series, { marker: a.f0_mhz, readEl: "rdSub", bands: sum, points, segs });
   $("subLegend").hidden = !(a.species === "d" && anView === "en");
+  $("pedLegend").hidden = !(rt && rt.pedestal);
   renderResults(a);
 }
 
@@ -498,7 +514,10 @@ function renderResults(a) {
     ["Area method, P = CC · A", pct(a.pol_area), chip(relErr(a.pol_area))],
   ];
   if (a.species === "d") {
-    if (a.ratio) rows.push([`Peak-height ratio, r = ${a.ratio.r.toFixed(4)}`, pct(a.ratio.pol), chip(relErr(a.ratio.pol))]);
+    if (a.ratio) {
+      const how = a.ratio.pedestal ? "above pedestal" : "raw; no pedestal found";
+      rows.push([`Peak-height ratio (${how}), r = ${a.ratio.r.toFixed(4)}`, pct(a.ratio.pol), chip(relErr(a.ratio.pol))]);
+    }
     if (a.fit) rows.push([`Absorption lineshape fit (A = ${a.fit.A.toFixed(3)}, ω<sub>Q</sub> = ${(a.fit.wq * 1e3).toFixed(2)} kHz, ξ = ${a.fit.xi.toFixed(3)})`, pct(a.fit.pol), chip(relErr(a.fit.pol))]);
     if (a.fit_complex) rows.push([`Complex lineshape fit (phase ${a.fit_complex.phase_deg.toFixed(2)}°)`, pct(a.fit_complex.pol), chip(relErr(a.fit_complex.pol))]);
   }

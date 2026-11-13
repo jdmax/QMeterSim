@@ -6,8 +6,9 @@ For each sweep of the phase-sensitive output:
     3. sum the points within the integration range to get the area.
 A thermal-equilibrium (TE) sweep, whose polarization is known from the temperature and field, calibrates
 the area: CC = P_TE / A_TE, and an enhanced signal's polarization is P = CC * A.
-For deuterons the polarization also follows from the lineshape itself; here, from the ratio of the two
-peak heights of the Pake doublet, r = h(+) / h(-), and P = (r^2 - 1)/(r^2 + r + 1).
+For deuterons the polarization also follows from the lineshape itself: from the ratio of the two peak
+heights of the Pake doublet, each measured above the other transition's plateau, r = H(+) / H(-), and
+P = (r^2 - 1)/(r^2 + r + 1); and from fits of the full lineshape.
 """
 
 import json
@@ -54,25 +55,79 @@ def analyze_sweep(f, raw, baseline, wings, sum_range, order):
     return dict(basesub=basesub, fit=fit, sub=sub, area=float(sub[sum_mask].sum()))
 
 
+def _pedestal_index(f, sm, i_pk, direction, floor=0.01, flat=0.2, steepen=1.5, tol=0.001):
+    """Index of the flattest point of the outer step beyond the horn at i_pk, or None.
+
+    Moving away from the line center (direction -1 below it, +1 above), the smoothed signal sm falls down
+    the horn's flank, levels off on the other transition's plateau, then drops again at that plateau's
+    outer edge. The search starts at the flank's steepest point, so it can't land on the horn. It ends
+    at the plateau's edge, where the slope is `steepen` times the flattest slope so far (plus `tol` of
+    the flank's slope, so noise doesn't end it early), or where the signal falls below `floor` of the
+    peak. The point of least slope in between is the pedestal. None is returned if no plateau is found:
+    if the search never reaches the plateau's edge, or the slope there isn't below `flat` times the
+    flank's slope. That happens when the line is too broad for the horn and step to separate, or when
+    dispersion mixed into the signal distorts it.
+    """
+    n = len(sm)
+    d = np.gradient(sm, f) * direction             # slope moving outward; negative while falling
+    j = i_pk + direction
+    while 0 <= j + direction < n and d[j + direction] <= d[j]:   # down the horn's flank
+        j += direction
+    j0 = j
+    if not 0 <= j0 < n or d[j0] >= 0:
+        return None
+    flank = abs(d[j0])
+    best = j0
+    while True:
+        j += direction
+        if not 0 <= j < n or sm[j] < floor * sm[i_pk]:
+            return None                            # ran out of signal before the plateau's edge
+        if abs(d[j]) < abs(d[best]):
+            best = j                               # flatter
+        elif d[j] < steepen * min(d[best], 0.0) - tol * flank:
+            break                                  # steepening again: the plateau's outer edge
+    if abs(d[best]) > flat * flank or best == j0:
+        return None
+    return int(best)
+
+
 def peak_ratio(f, sub, area, f0):
     """Deuteron polarization from the two peak heights of the fit-subtracted doublet.
 
-    The m=+1 transition's peak is above the Larmor frequency and the m=-1 peak below; their heights are
-    in the ratio of the populations, r = I+/I-, to first order. Sign is taken from the area so the
-    estimate does not depend on the Q-meter's output polarity.
+    The m=+1 transition's peak is above the Larmor frequency and the m=-1 peak below; their intensities
+    are in the ratio of the populations, r = I+/I-. Each peak sits on the plateau of the other transition,
+    so its height is measured from that plateau: from the flattest point of the step just outside the
+    peak (the pedestal) up to the peak. Then r = H+/H-. The plateau rises a little toward the line
+    center, so the pedestal under the peak is somewhat higher than where it's read, and a bias of a few %
+    in P remains. If either pedestal can't be found (a very broad line), the raw peak heights are used
+    and `pedestal` is False. Sign is taken from the area so the estimate does not depend on the
+    Q-meter's output polarity.
     """
-    s = sub * np.sign(area or 1.0)
+    sgn = np.sign(area or 1.0)
+    s = sub * sgn
     win = 0.5  # MHz either side
     hi = (f > f0) & (f < f0 + win)
     lo = (f < f0) & (f > f0 - win)
-    i_hi = np.nonzero(hi)[0][np.argmax(s[hi])]
-    i_lo = np.nonzero(lo)[0][np.argmax(s[lo])]
-    h_hi, h_lo = float(s[i_hi]), float(s[i_lo])
+    if not hi.any() or not lo.any():
+        return None
+    i_hi = int(np.nonzero(hi)[0][np.argmax(s[hi])])
+    i_lo = int(np.nonzero(lo)[0][np.argmax(s[lo])])
+
+    sm = np.convolve(np.pad(s, 2, mode='edge'), np.ones(5) / 5, mode='valid')   # light smoothing for slopes
+    p_lo = _pedestal_index(f, sm, i_lo, -1)
+    p_hi = _pedestal_index(f, sm, i_hi, +1)
+    pedestal = p_lo is not None and p_hi is not None
+    ped_lo = float(sm[p_lo]) if pedestal else 0.0
+    ped_hi = float(sm[p_hi]) if pedestal else 0.0
+    h_hi, h_lo = float(s[i_hi]) - ped_hi, float(s[i_lo]) - ped_lo
     if h_lo <= 0 or h_hi <= 0:
         return None
     r = h_hi / h_lo
-    return dict(r=r, pol=float(deuteron_lineshape.pol_from_r(r)), f_hi=float(f[i_hi]), f_lo=float(f[i_lo]),
-                h_hi=h_hi * np.sign(area or 1.0), h_lo=h_lo * np.sign(area or 1.0))
+    out = dict(r=r, pol=float(deuteron_lineshape.pol_from_r(r)), pedestal=pedestal,
+               f_hi=float(f[i_hi]), f_lo=float(f[i_lo]), h_hi=float(s[i_hi] * sgn), h_lo=float(s[i_lo] * sgn))
+    if pedestal:
+        out.update(f_ped_hi=float(f[p_hi]), f_ped_lo=float(f[p_lo]), ped_hi=ped_hi * sgn, ped_lo=ped_lo * sgn)
+    return out
 
 
 def _nelder_mead(fun, x0, step, max_iter=600, tol=1e-10):

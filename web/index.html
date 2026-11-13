@@ -122,8 +122,13 @@
       <li><b>Deuterons.</b> The asymmetry of the Pake doublet measures the polarization without a TE:
         the two transitions' intensities are in the ratio
         <span data-tex="r = I_+/I_-"></span> and <span data-tex="P = (r^2-1)/(r^2+r+1)"></span>.
-        The quick estimate takes <span data-tex="r"></span> as the ratio of the two peak heights, which is
-        biased because each peak sits on the other transition's plateau. A fit of the full lineshape, as in
+        The quick estimate takes <span data-tex="r = H_+/H_-"></span>, the ratio of the two peak heights.
+        Each peak sits on the other transition's plateau, so its height is measured from that plateau, read
+        at the flattest point of the step just outside the peak (dashed lines on plot 3). Without this
+        subtraction the ratio is pulled toward 1. The plateau rises a little toward the line center, so the
+        pedestal under each peak is somewhat higher than where it's read, and a bias of a few % in
+        <span data-tex="P"></span> remains. For a broad line, where the step and the peak merge, no
+        pedestal can be found and the raw heights are used. A fit of the full lineshape, as in
         <a href="https://github.com/jdmax/DeuteronPeakFit">DeuteronPeakFit</a>, does better, but only if the
         output is pure absorption: cables rotate the signal's phase and mix in dispersion. The complex fit adds
         a phase angle to absorb this. Try both before and after pressing the phase plot's Tune button.</li>
@@ -182,7 +187,8 @@
           <span id="subLegend" hidden>
             <span style="color:var(--fitc)"><i class="sw dash"></i></span><span>absorption fit</span>
             <span style="color:var(--shell)"><i class="sw dot"></i></span><span>complex fit</span>
-            <span style="color:var(--ink)">●</span><span>peak heights</span>
+            <span style="color:var(--ink)">●</span><span>peaks</span>
+            <span id="pedLegend" hidden><span style="color:var(--ink)"><i class="sw ped"></i></span><span>height above pedestal</span></span>
           </span>
         </div>
         <div class="readline" id="rdSub" aria-live="off"></div>
