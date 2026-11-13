@@ -137,6 +137,7 @@ function syncControls() {
     el.value = fmtInput(P[el.dataset.p], Number(el.dataset.scale || 1));
   }
   for (const t of TRIMS) $("r_" + t.p).value = Math.min(4, P[t.p]);
+  $("r_pol").value = 100 * P.pol;
   setSeg("speciesSeg", P.species);
   setSeg("sigSeg", P.sig ? "1" : "0");
   setSeg("anViewSeg", anView);
@@ -168,6 +169,7 @@ function updateLengths() {
 
 function onChange(src) {
   if (src !== "tune" && !$("tuneMsg").hidden && !$("tuneMsg").querySelector(".dot.busy")) setTuneMsg("", "");
+  if (src === "pol") $("r_pol").value = 100 * P.pol;     // typed value -> slider
   updateLengths();
   writeUrl();
   requestCompute();
@@ -596,6 +598,13 @@ $("btnCsv").addEventListener("click", () => {
 
 $("btnTuneDiode").addEventListener("click", () => requestTune("diode"));
 $("btnTunePhase").addEventListener("click", () => requestTune("phase"));
+
+$("r_pol").addEventListener("input", (e) => {               // slider -> value and box
+  P.pol = clean(Number(e.target.value) / 100);
+  $("p_pol").value = fmtInput(P.pol, 0.01);
+  $("p_pol").classList.remove("bad");
+  onChange("r_pol");
+});
 
 for (const b of document.querySelectorAll("[data-example]")) {
   b.addEventListener("click", () => {

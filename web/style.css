@@ -230,3 +230,7 @@ section.panel > .eq { margin: 6px 0; overflow-x: auto; }
 .ctl.wide .row { flex-wrap: nowrap; }
 .ctl.wide input[type="range"] { flex: 1 1 auto; width: auto; min-width: 0; }
 #pValue { min-width: 4.5em; text-align: right; }
+.ctl.pol .row { flex-wrap: nowrap; }
+.ctl.pol input[type="number"] { width: 6.5em; }
+.ctl.pol input[type="range"] { width: 170px; }
+@media (max-width: 560px) { .ctl.pol { flex: 1 1 100%; } .ctl.pol input[type="range"] { flex: 1 1 auto; width: auto; min-width: 0; } }
