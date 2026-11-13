@@ -173,8 +173,6 @@ ol.steps b { color: var(--ink); font-weight: 600; }
 .controls.inset input.frac { width: 5.2em; }
 .card.flat { background: transparent; border: 0; padding: 0; }
 .an-stage { margin-bottom: 4px; }
-.an-stage .wide { grid-column: 1 / -1; }
-@media (min-width: 881px) { .an-stage .wide .canvas-box { aspect-ratio: 16 / 7; } }
 .results { grid-template-columns: 1fr auto auto; max-width: 820px; }
 .results .e { text-align: right; }
 .sw.dot { background: none; border-top: 2px dotted currentColor; height: 0; width: 18px; border-radius: 0; }
