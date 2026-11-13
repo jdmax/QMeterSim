@@ -149,27 +149,37 @@ def test_cables():
 
 def test_proton_lineshape():
     import proton_lineshape as pl
-    p = qmeter._params(dict(species='p', pol=0.3))
-    f0 = qmeter.larmor_mhz(p)
+    f0 = qmeter.larmor_mhz(qmeter._params(dict(species='p')))
     f = np.linspace(f0 - 8, f0 + 8, 2 ** 17, endpoint=False)
     x = (f - f0) * 1e3
-    # dispersion is the exact Kramers-Kronig partner: chi' = -H[chi'']
-    g = pl.absorption(x)
-    near = abs(x) < 400
-    assert np.max(abs(pl.hilbert(x[near]) - _hilbert(g)[near])) < 1e-3
-    chi = qmeter.susceptibility(p, 2 * np.pi * f * 1e6)
-    assert np.allclose(chi.real, -0.3 * qmeter.CHI0_PER_POL_P * (np.pi / 2) * f0 * 1e3 / pl.AREA_KHZ * pl.hilbert(x))
-    # normalized like the notebook's line: integral of chi'' d omega = (pi/2) omega0 chi0
     w = 2 * np.pi * f * 1e6
-    assert np.isclose(np.trapezoid(-chi.imag, w), (np.pi / 2) * 2 * np.pi * f0 * 1e6 * qmeter.CHI0_PER_POL_P * 0.3,
-                      rtol=1e-4)
-    # measured shape: ~35 kHz wide, sharp high-frequency edge, long low-frequency tail; centroid at f0
-    ab = -chi.imag
-    i0 = np.argmax(ab)
-    half = np.nonzero(ab > ab.max() / 2)[0]
-    assert 30 < 1e3 * (f[half[-1]] - f[half[0]]) < 40
-    assert (f[i0] - f[half[0]]) > 1.5 * (f[half[-1]] - f[i0])
-    assert abs(np.sum(ab * x) / np.sum(ab)) < 0.1
+    near = abs(x) < 400
+    shape = {}
+    for pol in (0.005, 0.3, 0.79, -0.4):
+        p = qmeter._params(dict(species='p', pol=pol))
+        # dispersion is the exact Kramers-Kronig partner: chi' = -H[chi'']
+        g = pl.absorption(x, pol)
+        assert np.max(abs(pl.hilbert(x[near], pol) - _hilbert(g)[near])) < 1e-3, pol
+        chi = qmeter.susceptibility(p, w)
+        k = pol * qmeter.CHI0_PER_POL_P * (np.pi / 2) * f0 * 1e3 / pl.AREA_KHZ
+        assert np.allclose(chi.real, -k * pl.hilbert(x, pol)), pol
+        # normalized like the notebook's line at every P: integral of chi'' d omega = (pi/2) omega0 chi0
+        assert np.isclose(np.trapezoid(-chi.imag, w), (np.pi / 2) * 2 * np.pi * f0 * 1e6 * qmeter.CHI0_PER_POL_P * pol,
+                          rtol=1e-4), pol
+        ab = g / g.max()
+        i0 = np.argmax(ab)
+        half = np.nonzero(ab > 0.5)[0]
+        shape[pol] = (1e3 * (f[i0] - f[half[0]]), 1e3 * (f[half[-1]] - f[i0]), np.sum(ab * x) / np.sum(ab))
+    # measured behavior: centroid shifts ~25 kHz per unit P; at high P the line is ~35 kHz wide with a sharp
+    # high-frequency edge; near P = 0 it is nearly symmetric and broader; negative P mirrors the asymmetry
+    for pol, (lo, hi, c) in shape.items():
+        assert abs(c - pl.SHIFT_KHZ_PER_POL * pol) < 1.5, (pol, c)
+    lo, hi, _ = shape[0.79]
+    assert 30 < lo + hi < 40 and lo > 1.4 * hi
+    lo, hi, _ = shape[0.005]
+    assert 42 < lo + hi < 56 and 0.8 < lo / hi < 1.25
+    lo, hi, _ = shape[-0.4]
+    assert hi > 1.2 * lo
     print("test_proton_lineshape: OK")
 
 

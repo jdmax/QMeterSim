@@ -237,9 +237,10 @@
             frequency for the chosen species at the given field. Phase is in degrees from ideal tune with zero
             line length.</li>
           <li>The optional polarization signal enters as a complex susceptibility multiplying the coil
-            inductance, L = L<sub>0</sub>(1 + 4πηχ). For protons the lineshape is a measured signal from
-            <a href="https://github.com/jdmax/NMR_Analysis">NMR_Analysis</a>, scaled with Seely's susceptibility
-            and Hill &amp; Hill's normalization. For deuterons it is the Pake doublet of Dulya <i>et al.</i>,
+            inductance, L = L<sub>0</sub>(1 + 4πηχ). For protons the lineshape is fitted to measured signals
+            at polarizations from 24% to 79%, so it shifts and sharpens as the polarization grows; its size
+            follows Seely's susceptibility and Hill &amp; Hill's normalization. For deuterons it is the Pake
+            doublet of Dulya <i>et al.</i>,
             ported from <a href="https://github.com/jdmax/DeuteronPeakFit">DeuteronPeakFit</a>, with its
             dispersion as well as its absorption.</li>
           <li>Polarization has its physical sign: positive is absorptive, as at thermal equilibrium. The
@@ -293,14 +294,19 @@
         <h3>Coil and proton signal</h3>
         <div class="eq" data-tex="Z_L = \left(R_\text{coil} + i\omega L\right) \parallel \frac{1}{i\omega C_s}"></div>
         <div class="eq" data-tex="L(\omega) = L_0\left[\,1 + 4\pi\eta\,\chi(\omega)\,\right], \qquad \chi = \chi' - i\chi''"></div>
-        <div class="eq" data-tex="\chi_p'' = \frac{\pi}{2}\,\omega_0\chi_0\;g(\omega-\omega_0), \qquad \int g\,d\omega = 1"></div>
+        <div class="eq" data-tex="\chi_p'' = \frac{\pi}{2}\,\omega_0\chi_0\;g(\omega-\omega_0;\,P), \qquad \int g\,d\omega = 1"></div>
+        <div class="eq" data-tex="g(x;P) = A_0(x - sP) + P\,A_1(x - sP), \qquad s = 24.8\text{ kHz}"></div>
         <div class="eq" data-tex="\chi_p' = -\mathcal{H}\big[\chi_p''\big], \qquad \mathcal{H}[\wedge_h](x) = \frac{F(x+h) - 2F(x) + F(x-h)}{\pi h},\ \ F(x) = x\ln|x|"></div>
         <p>with <span data-tex="\chi_0 = 3.1\times10^{-4}\,P"></span> (Seely) and filling factor
-          <span data-tex="\eta"></span>. <span data-tex="g"></span> is a measured proton line from
-          <a href="https://github.com/jdmax/NMR_Analysis">NMR_Analysis</a> (5 T, 2022): about 35 kHz wide,
-          with a sharp high-frequency edge and a long low-frequency tail, centered on
-          <span data-tex="\omega_0"></span>. Between samples it is a straight line, a sum of triangles
-          <span data-tex="\wedge_h"></span>, whose Hilbert transforms are exact, so
+          <span data-tex="\eta"></span>. <span data-tex="g"></span> is fitted to measured proton lines from
+          a 5 T target (2022) at polarizations from 24% to 79%. As <span data-tex="P"></span> grows, the line
+          shifts up by <span data-tex="sP"></span>, the local field of the polarized sample, and its shape
+          <span data-tex="A_0 + P A_1"></span> sharpens on the high-frequency side: about 49 kHz wide and nearly
+          symmetric near <span data-tex="P = 0"></span>, 35 kHz wide with a long low-frequency tail at 79%. For
+          negative <span data-tex="P"></span> the shift and the sharp edge reverse.
+          <span data-tex="\int A_1 = 0"></span>, so the area does not depend on <span data-tex="P"></span>.
+          Between samples <span data-tex="A_0"></span> and <span data-tex="A_1"></span> are straight lines,
+          sums of triangles <span data-tex="\wedge_h"></span>, whose Hilbert transforms are exact, so
           <span data-tex="\chi'"></span> is the exact Kramers–Kronig partner of
           <span data-tex="\chi''"></span>. The area is that of Hill &amp; Hill's line. With the signal off,
           <span data-tex="L = L_0"></span>.</p>
