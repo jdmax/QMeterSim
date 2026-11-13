@@ -57,6 +57,10 @@ which the reference cable or the phase setting corrects.
   zero-length cables, checks that matched cables don't change the Q-curve, and checks the tuning, the deuteron
   lineshape and the analysis
 * `index.html`, `app.js`, `worker.js`, `style.css`: the page
+* `proton.html`, `proton.js`, `proton_data.json`: a second page on how the proton line changes with polarization,
+  with measured example lines
+* `tools/make_proton_data.py`: builds `proton_lineshape.py` and `proton_data.json` from NMR event logs (the logs
+  themselves are not in the repository; by default it reads the git-ignored `temp/`)
 * `serve_web.py`: assembles the site in `_site/`
 
 ## Running locally

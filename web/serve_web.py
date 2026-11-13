@@ -17,7 +17,7 @@ from pathlib import Path
 WEB = Path(__file__).resolve().parent
 REPO = WEB.parent
 SITE = WEB / "_site"
-PAGE_FILES = ["index.html", "app.js", "worker.js", "style.css"]
+PAGE_FILES = ["index.html", "app.js", "worker.js", "style.css", "proton.html", "proton.js", "proton_data.json"]
 PY_FILES = ["qmeter.py", "deuteron_lineshape.py", "proton_lineshape.py", "analysis.py"]
 REPO_ASSETS = ["schem.PNG"]   # shared with the notebook's README, so kept at the repo root
 
@@ -41,7 +41,7 @@ def build():
     for f in stamped:
         h.update((SITE / f).read_bytes())
     version = h.hexdigest()[:10]
-    for f in ("index.html", "app.js"):
+    for f in ("index.html", "app.js", "proton.html", "proton.js"):
         p = SITE / f
         p.write_text(p.read_text(encoding="utf-8").replace("__V__", version), encoding="utf-8")
     print(f"built {SITE} (v={version})")
