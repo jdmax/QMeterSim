@@ -294,14 +294,20 @@
       </div>
 
       <div class="eqcard">
-        <h3>Coil and proton signal</h3>
+        <h3>Coil</h3>
         <div class="eq" data-tex="Z_L = \left(R_\text{coil} + i\omega L\right) \parallel \frac{1}{i\omega C_s}"></div>
         <div class="eq" data-tex="L(\omega) = L_0\left[\,1 + 4\pi\eta\,\chi(\omega)\,\right], \qquad \chi = \chi' - i\chi''"></div>
+        <p><span data-tex="\eta"></span> is the filling factor and <span data-tex="\chi"></span> the complex
+          susceptibility of the polarized sample, given below for protons and deuterons. With the signal off,
+          <span data-tex="L = L_0"></span>.</p>
+      </div>
+
+      <div class="eqcard">
+        <h3>Proton signal</h3>
         <div class="eq" data-tex="\chi_p'' = \frac{\pi}{2}\,\omega_0\chi_0\;g(\omega-\omega_0;\,P), \qquad \int g\,d\omega = 1"></div>
         <div class="eq" data-tex="g(x;P) = A_0(u) + P\,A_\pm(u), \qquad u = x - s_\pm P, \qquad s_+ = 19.7\text{ kHz},\ \ s_- = 15.7\text{ kHz}"></div>
         <div class="eq" data-tex="\chi_p' = -\mathcal{H}\big[\chi_p''\big], \qquad \mathcal{H}[\wedge_h](x) = \frac{F(x+h) - 2F(x) + F(x-h)}{\pi h},\ \ F(x) = x\ln|x|"></div>
-        <p>with <span data-tex="\chi_0 = 3.1\times10^{-4}\,P"></span> (Seely) and filling factor
-          <span data-tex="\eta"></span>. <span data-tex="g"></span> is fitted to measured proton lines from
+        <p>with <span data-tex="\chi_0 = 3.1\times10^{-4}\,P"></span> (Seely). <span data-tex="g"></span> is fitted to measured proton lines from
           a 5 T target (2022), taken while the polarization was growing: spin-ups from 7% to 78% and the
           build-up after two reversals from −31% to −73%, with <span data-tex="A_+, s_+"></span> for positive and
           <span data-tex="A_-, s_-"></span> for negative <span data-tex="P"></span>. Near
@@ -317,8 +323,7 @@
           sums of triangles <span data-tex="\wedge_h"></span>, whose Hilbert transforms are exact, so
           <span data-tex="\chi'"></span> is the exact Kramers–Kronig partner of
           <span data-tex="\chi''"></span>. The area is that of Hill &amp; Hill's line
-          (<a href="proton.html">more on the proton line</a>). With the signal off,
-          <span data-tex="L = L_0"></span>.</p>
+          (<a href="proton.html">more on the proton line</a>).</p>
       </div>
 
       <div class="eqcard">
